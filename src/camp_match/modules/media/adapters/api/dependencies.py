@@ -11,6 +11,8 @@ from camp_match.modules.media.application.use_cases.get_authorized_access import
 from camp_match.modules.media.application.use_cases.upload_media import UploadMediaUseCase
 from camp_match.modules.media.application.use_cases.delete_media import DeleteMediaUseCase
 from camp_match.platform.db.session import get_db_session
+from camp_match.platform.db.unit_of_work import SqlAlchemyUnitOfWork
+from camp_match.shared_kernel.application.unit_of_work import UnitOfWork
 
 
 def get_media_repository(session: Annotated[AsyncSession, Depends(get_db_session)]) -> SqlAlchemyMediaRepository:
@@ -23,6 +25,10 @@ def get_storage_adapter(settings: Annotated[Settings, Depends(get_settings)]) ->
         secret=settings.media_access_token_secret,
         ttl_seconds=settings.media_access_token_ttl_seconds,
     )
+
+
+def get_uow(session: Annotated[AsyncSession, Depends(get_db_session)]) -> UnitOfWork:
+    return SqlAlchemyUnitOfWork(session)
 
 
 def get_get_media_metadata(
@@ -41,8 +47,9 @@ def get_get_authorized_access(
 def get_upload_media(
     repo: Annotated[SqlAlchemyMediaRepository, Depends(get_media_repository)],
     storage: Annotated[LocalFileSystemStorageAdapter, Depends(get_storage_adapter)],
+    uow: Annotated[UnitOfWork, Depends(get_uow)],
 ) -> UploadMediaUseCase:
-    return UploadMediaUseCase(repo, storage)
+    return UploadMediaUseCase(repo, storage, uow)
 
 
 def get_delete_media(

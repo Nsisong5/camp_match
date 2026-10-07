@@ -118,6 +118,7 @@ async def upload_avatar(
     profile.set_avatar_media(upload_res.media_id)
     async with uow:
         await repo.update_core(profile)
+        await uow.commit()
 
     avatar_obj = await _build_avatar_response(profile, get_access_uc)
     return schemas.ProfileResponseSchema(

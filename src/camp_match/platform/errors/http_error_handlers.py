@@ -49,6 +49,19 @@ def register_error_handlers(app: FastAPI) -> None:
     async def handle_validation_error(request: Request, exc: ValidationError) -> JSONResponse:
         return await handle_application_error(request, exc, 422)
 
+    @app.exception_handler(ValueError)
+    async def handle_value_error(request: Request, exc: ValueError) -> JSONResponse:
+        logger.warning("value_error", error=str(exc), path=str(request.url))
+        return JSONResponse(
+            status_code=422,
+            content={
+                "error": {
+                    "code": "invalid_search_criteria",
+                    "message": str(exc),
+                }
+            },
+        )
+
     @app.exception_handler(UnauthorizedError)
     async def handle_unauthorized_error(request: Request, exc: UnauthorizedError) -> JSONResponse:
         return await handle_application_error(request, exc, 401)

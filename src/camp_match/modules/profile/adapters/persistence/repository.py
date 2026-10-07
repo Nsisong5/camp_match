@@ -94,6 +94,7 @@ class SqlAlchemyProfileRepository:
             model.phone_number = profile.phone_number
             model.avatar_url = profile.avatar_url
             model.avatar_media_id = str(profile.avatar_media_id.value) if profile.avatar_media_id else None
+            await self._session.flush()
 
     async def update_student_extension(self, profile: Profile) -> None:
         stmt = select(StudentProfileModel).where(StudentProfileModel.profile_id == str(profile.id.value))

@@ -15,7 +15,11 @@ from camp_match.modules.housing.application.ports.outbound import (
     ListingRepository,
     AuthorizationService,
 )
-from camp_match.modules.university_location.adapters.persistence.repository import SqlAlchemyUniversityRepository
+from camp_match.modules.university_location.adapters.persistence.repository import (
+    SqlAlchemyCampusRepository,
+    SqlAlchemyUniversityRepository,
+)
+from camp_match.modules.university_location.application.use_cases.get_campus import GetCampusUseCase
 from camp_match.modules.housing.adapters.university_location.university_location_provider import InProcessUniversityLocationProvider
 from camp_match.modules.profile.adapters.persistence.repository import SqlAlchemyProfileRepository
 from camp_match.modules.profile.application.use_cases.get_current_user_profile import GetCurrentUserProfileUseCase
@@ -28,8 +32,9 @@ from camp_match.shared_kernel.application.unit_of_work import UnitOfWork
 
 
 def get_university_location_provider(session: Annotated[AsyncSession, Depends(get_db_session)]) -> InProcessUniversityLocationProvider:
-    repo = SqlAlchemyUniversityRepository(session)
-    return InProcessUniversityLocationProvider(repo)
+    campus_repo = SqlAlchemyCampusRepository(session)
+    get_campus_uc = GetCampusUseCase(campus_repo)
+    return InProcessUniversityLocationProvider(get_campus_uc)
 
 
 def get_profile_provider(session: Annotated[AsyncSession, Depends(get_db_session)]) -> InProcessProfileProvider:

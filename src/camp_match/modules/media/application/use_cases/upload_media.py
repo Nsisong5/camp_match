@@ -18,6 +18,7 @@ from camp_match.modules.media.domain.entities import MediaFile
 from camp_match.modules.media.domain.policy import rules_for
 from camp_match.modules.media.domain.value_objects import MediaStatus
 from camp_match.shared_kernel.domain.identifiers import EntityId
+from camp_match.shared_kernel.application.unit_of_work import UnitOfWork
 
 logger = logging.getLogger(__name__)
 
@@ -35,9 +36,10 @@ def sniff_content_type(data: bytes) -> str | None:
 
 
 class UploadMediaUseCase:
-    def __init__(self, repo: MediaRepository, storage: StoragePort) -> None:
+    def __init__(self, repo: MediaRepository, storage: StoragePort, unit_of_work: UnitOfWork | None = None) -> None:
         self._repo = repo
         self._storage = storage
+        self._uow = unit_of_work
 
     async def execute(self, request: UploadMediaRequest) -> UploadMediaResponse:
         rules = rules_for(request.purpose)
@@ -66,28 +68,55 @@ class UploadMediaUseCase:
             uploaded_by=request.uploaded_by,
             status=MediaStatus.UPLOADING,
         )
-        await self._repo.add(media)
 
         storage_key = f"media/{media_id.value}"
 
-        try:
-            self._storage.store(storage_key, request.data, sniffed_type)
-            media.mark_available(storage_key)
-            await self._repo.update(media)
-            logger.info(
-                "media_uploaded media_id=%s purpose=%s size=%s",
-                media_id.value,
-                request.purpose.value,
-                len(request.data),
-            )
-            return UploadMediaResponse(media_id=media_id, status=media.status)
-        except Exception as e:
-            media.mark_failed()
-            await self._repo.update(media)
-            logger.warning(
-                "media_upload_failed media_id=%s purpose=%s error=%s",
-                media_id.value,
-                request.purpose.value,
-                str(e),
-            )
-            raise MediaUploadFailed(f"Failed to store media file: {e}") from e
+        if self._uow:
+            async with self._uow:
+                await self._repo.add(media)
+                try:
+                    self._storage.store(storage_key, request.data, sniffed_type)
+                    media.mark_available(storage_key)
+                    await self._repo.update(media)
+                    await self._uow.commit()
+                    logger.info(
+                        "media_uploaded media_id=%s purpose=%s size=%s",
+                        media_id.value,
+                        request.purpose.value,
+                        len(request.data),
+                    )
+                    return UploadMediaResponse(media_id=media_id, status=media.status)
+                except Exception as e:
+                    media.mark_failed()
+                    await self._repo.update(media)
+                    await self._uow.commit()
+                    logger.warning(
+                        "media_upload_failed media_id=%s purpose=%s error=%s",
+                        media_id.value,
+                        request.purpose.value,
+                        str(e),
+                    )
+                    raise MediaUploadFailed(f"Failed to store media file: {e}") from e
+        else:
+            await self._repo.add(media)
+            try:
+                self._storage.store(storage_key, request.data, sniffed_type)
+                media.mark_available(storage_key)
+                await self._repo.update(media)
+                logger.info(
+                    "media_uploaded media_id=%s purpose=%s size=%s",
+                    media_id.value,
+                    request.purpose.value,
+                    len(request.data),
+                )
+                return UploadMediaResponse(media_id=media_id, status=media.status)
+            except Exception as e:
+                media.mark_failed()
+                await self._repo.update(media)
+                logger.warning(
+                    "media_upload_failed media_id=%s purpose=%s error=%s",
+                    media_id.value,
+                    request.purpose.value,
+                    str(e),
+                )
+                raise MediaUploadFailed(f"Failed to store media file: {e}") from e

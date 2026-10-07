@@ -12,7 +12,10 @@ class InProcessUniversityLocationProvider(UniversityLocationProvider):
 
     async def campus_exists(self, campus_id: EntityId) -> bool:
         try:
-            await self._get_campus_port.execute(str(campus_id))
+            cid_str = str(campus_id.value if hasattr(campus_id, "value") else campus_id)
+            await self._get_campus_port.execute(cid_str)
             return True
-        except Exception: # Inbound ports might not raise CampusNotFound specifically if defined in UseCase, adjust based on actual port behavior
+        except CampusNotFound:
+            return False
+        except Exception:
             return False

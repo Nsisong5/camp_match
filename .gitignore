@@ -67,3 +67,7 @@ AI_state/
 
 modules_docs/
 module_docs/
+
+#property creation
+
+seed_properties.py

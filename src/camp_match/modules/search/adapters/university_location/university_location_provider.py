@@ -1,13 +1,17 @@
 from camp_match.modules.search.application.ports.outbound import UniversityLocationProvider
-from camp_match.modules.university_location.application.ports.inbound import UniversityLocationQueryPort
+from camp_match.modules.university_location.application.ports.inbound import GetCampus
+from camp_match.modules.university_location.application.errors import CampusNotFound
 from camp_match.modules.search.domain.value_objects import Coordinates, EntityId
 
 class UniversityLocationProviderAdapter(UniversityLocationProvider):
-    def __init__(self, query_port: UniversityLocationQueryPort):
-        self._query_port = query_port
+    def __init__(self, get_campus: GetCampus):
+        self._get_campus = get_campus
 
     async def get_campus_coordinates(self, campus_id: EntityId) -> Coordinates | None:
-        location = await self._query_port.get_campus_location(str(campus_id))
-        if not location:
+        try:
+            campus = await self._get_campus.execute(str(campus_id))
+            return Coordinates(latitude=campus.latitude, longitude=campus.longitude)
+        except CampusNotFound:
             return None
-        return Coordinates(latitude=location.latitude, longitude=location.longitude)
+        except Exception:
+            return None

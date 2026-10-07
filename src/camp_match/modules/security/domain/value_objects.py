@@ -17,6 +17,9 @@ class Permission(Enum):
     ADMIN_USERS_MANAGE = "admin.users.manage"
     UNIVERSITY_MANAGE = "university.manage"
     HOUSING_MANAGE = "housing.manage"
+    VERIFICATION_MANAGE = "verification.manage"
+    VERIFICATION_INSPECT = "verification.inspect"
+    VERIFICATION_REVIEW = "verification.review"
     EXAMPLE_TEST_PERMISSION = "test.ownership.scoped"  # Test-only
 
 

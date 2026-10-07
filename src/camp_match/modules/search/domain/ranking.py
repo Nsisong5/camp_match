@@ -3,6 +3,7 @@ from typing import Protocol
 from camp_match.modules.search.domain.value_objects import (
     CandidateListing, SearchCriteria, ScoredCandidate, Coordinates, VerificationState
 )
+from camp_match.shared_kernel.domain.identifiers import EntityId
 
 def haversine_distance(coord1: Coordinates, coord2: Coordinates) -> float:
     R = 6371.0  # Earth's radius in km
@@ -21,21 +22,30 @@ def haversine_distance(coord1: Coordinates, coord2: Coordinates) -> float:
     return R * c
 
 class RankingStrategy(Protocol):
-    async def score(self, candidates: list[CandidateListing], criteria: SearchCriteria, verification_states: dict[str, VerificationState]) -> list[ScoredCandidate]:
+    async def score(
+        self,
+        candidates: list[CandidateListing],
+        criteria: SearchCriteria,
+        verification_states: dict[EntityId, VerificationState],
+        campus_coordinates: Coordinates | None = None,
+    ) -> list[ScoredCandidate]:
         ...
 
 class SearchRankingStrategy:
-    async def score(self, candidates: list[CandidateListing], criteria: SearchCriteria, verification_states: dict[str, VerificationState]) -> list[ScoredCandidate]:
+    async def score(
+        self,
+        candidates: list[CandidateListing],
+        criteria: SearchCriteria,
+        verification_states: dict[EntityId, VerificationState],
+        campus_coordinates: Coordinates | None = None,
+    ) -> list[ScoredCandidate]:
         scored_candidates = []
         
         for candidate in candidates:
             # Distance computation for proximity
             dist = None
-            if criteria.campus_id is not None and candidate.coordinates is not None:
-                # In a real system, we'd get campus coordinates from a service
-                # Here, we assume the candidate or context might have them
-                # For MVP, we need campus coordinates.
-                pass
+            if campus_coordinates is not None and candidate.coordinates is not None:
+                dist = haversine_distance(candidate.coordinates, campus_coordinates)
                 
             # Weights
             weights = {
@@ -47,7 +57,7 @@ class SearchRankingStrategy:
             
             # Identify active factors
             active_factors = []
-            if criteria.campus_id is not None and dist is not None:
+            if campus_coordinates is not None and dist is not None:
                 active_factors.append("proximity")
             if criteria.max_price_kobo is not None:
                 active_factors.append("budget")
@@ -72,7 +82,7 @@ class SearchRankingStrategy:
                 score += budget_score * normalized_weights["budget"]
                 
             # Verification
-            state = verification_states.get(str(candidate.listing_id), VerificationState.UNKNOWN)
+            state = verification_states.get(candidate.listing_id, VerificationState.UNKNOWN)
             verif_score = 1.0 if state == VerificationState.VERIFIED else 0.0
             score += verif_score * normalized_weights["verification"]
             
@@ -84,7 +94,7 @@ class SearchRankingStrategy:
             freshness_score = max(0.0, 1.0 - days_since / 90.0)
             score += freshness_score * normalized_weights["freshness"]
             
-            scored_candidates.append(ScoredCandidate(candidate, score, dist))
+            scored_candidates.append(ScoredCandidate(candidate, score, dist, verification_state=state))
             
         # Deterministic Sorting: Score (desc), Created (desc), ID (asc)
         # To achieve this in one sort, we use: (-score, inverted_created_at, listing_id)

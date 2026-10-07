@@ -4,12 +4,12 @@ from camp_match.modules.security.domain.value_objects import AuthorizationOutcom
 
 def test_role_permissions_mapping():
     assert Permission.ADMIN_USERS_MANAGE in _ROLE_PERMISSIONS[Role.ADMIN]
-    assert len(_ROLE_PERMISSIONS[Role.OPERATIONS]) == 0
+    assert Permission.VERIFICATION_REVIEW in _ROLE_PERMISSIONS[Role.OPERATIONS]
+    assert Permission.VERIFICATION_INSPECT in _ROLE_PERMISSIONS[Role.OPERATIONS]
     assert len(_ROLE_PERMISSIONS[Role.STUDENT]) == 0
-    assert len(_ROLE_PERMISSIONS[Role.SCOUT]) == 1
+    assert len(_ROLE_PERMISSIONS[Role.SCOUT]) == 2
     assert Permission.HOUSING_MANAGE in _ROLE_PERMISSIONS[Role.SCOUT]
-
-    assert Permission.HOUSING_MANAGE in _ROLE_PERMISSIONS[Role.SCOUT]
+    assert Permission.VERIFICATION_MANAGE in _ROLE_PERMISSIONS[Role.SCOUT]
 
 def test_authorization_outcomes():
     assert AuthorizationOutcome.ALLOWED.name == "ALLOWED"

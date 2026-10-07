@@ -15,6 +15,14 @@ from camp_match.modules.profile.adapters.persistence.models import ProfileModel,
 from camp_match.modules.university_location.adapters.persistence.models import UniversityModel, CampusModel
 from camp_match.modules.housing.adapters.persistence.models import PropertyModel, UnitModel, ListingModel, ListingMediaModel
 from camp_match.modules.media.adapters.persistence.models import MediaFileModel
+from camp_match.modules.verification.adapters.persistence.models import (
+    VerificationCaseModel,
+    VerificationEvidenceModel,
+    InspectionModel,
+    InspectionObservationModel,
+    VerificationDecisionModel,
+    VerificationHistoryModel,
+)
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

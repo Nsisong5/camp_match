@@ -7,7 +7,7 @@ from typing import Final
 from camp_match.shared_kernel.domain.identifiers import EntityId
 
 
-class AccommodationType(Enum):
+class AccommodationType(str, Enum):
     SELF_CONTAINED_HOUSE = "SELF_CONTAINED_HOUSE"
     LODGE = "LODGE"
     APARTMENT_BUILDING = "APARTMENT_BUILDING"
@@ -15,29 +15,29 @@ class AccommodationType(Enum):
     OTHER = "OTHER"
 
 
-class Amenity(Enum):
-    WATER = auto()
-    ELECTRICITY = auto()
-    SECURITY = auto()
-    PARKING = auto()
-    GENERATOR = auto()
-    CCTV = auto()
-    WIFI = auto()
-    FURNISHED = auto()
-    PRIVATE_BATHROOM = auto()
-    KITCHEN = auto()
+class Amenity(str, Enum):
+    WATER = "WATER"
+    ELECTRICITY = "ELECTRICITY"
+    SECURITY = "SECURITY"
+    PARKING = "PARKING"
+    GENERATOR = "GENERATOR"
+    CCTV = "CCTV"
+    WIFI = "WIFI"
+    FURNISHED = "FURNISHED"
+    PRIVATE_BATHROOM = "PRIVATE_BATHROOM"
+    KITCHEN = "KITCHEN"
 
 
-class BillingPeriod(Enum):
+class BillingPeriod(str, Enum):
     YEAR = "YEAR"
     SEMESTER = "SEMESTER"
     MONTH = "MONTH"
 
 
-class VerificationState(Enum):
-    VERIFIED = auto()
-    UNVERIFIED = auto()
-    UNKNOWN = auto()
+class VerificationState(str, Enum):
+    VERIFIED = "VERIFIED"
+    UNVERIFIED = "UNVERIFIED"
+    UNKNOWN = "UNKNOWN"
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,12 +52,12 @@ class Coordinates:
             raise ValueError("Longitude must be between -180 and 180")
 
 
-class SortOption(Enum):
-    RELEVANCE = auto()
-    PRICE_ASC = auto()
-    PRICE_DESC = auto()
-    DISTANCE = auto()
-    NEWEST = auto()
+class SortOption(str, Enum):
+    RELEVANCE = "RELEVANCE"
+    PRICE_ASC = "PRICE_ASC"
+    PRICE_DESC = "PRICE_DESC"
+    DISTANCE = "DISTANCE"
+    NEWEST = "NEWEST"
 
 
 @dataclass(frozen=True)
@@ -108,3 +108,4 @@ class ScoredCandidate:
     listing: CandidateListing
     score: float
     distance_km: float | None = None
+    verification_state: VerificationState = VerificationState.UNKNOWN

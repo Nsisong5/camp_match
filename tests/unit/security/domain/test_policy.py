@@ -6,7 +6,8 @@ def test_permissions_for_role():
     assert Permission.ADMIN_USERS_MANAGE in permissions_for(Role.ADMIN)
     assert Permission.UNIVERSITY_MANAGE in permissions_for(Role.ADMIN)
     assert Permission.HOUSING_MANAGE in permissions_for(Role.ADMIN)
-    assert len(permissions_for(Role.OPERATIONS)) == 0
+    assert Permission.VERIFICATION_REVIEW in permissions_for(Role.OPERATIONS)
+    assert Permission.VERIFICATION_INSPECT in permissions_for(Role.OPERATIONS)
     assert len(permissions_for(Role.STUDENT)) == 0
     assert Permission.HOUSING_MANAGE in permissions_for(Role.SCOUT)
 

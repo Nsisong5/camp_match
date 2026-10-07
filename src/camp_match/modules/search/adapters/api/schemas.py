@@ -1,6 +1,12 @@
 from pydantic import BaseModel, Field
 from typing import List, Optional
-from camp_match.modules.search.domain.value_objects import AccommodationType, BillingPeriod, Amenity, SortOption
+from camp_match.modules.search.domain.value_objects import (
+    AccommodationType,
+    BillingPeriod,
+    Amenity,
+    SortOption,
+    VerificationState,
+)
 
 class SearchRequestSchema(BaseModel):
     campus_id: Optional[str] = None
@@ -28,3 +34,11 @@ class ScoredCandidateResponse(BaseModel):
     listing: CandidateListingResponse
     score: float
     distance_km: Optional[float] = None
+    verification_state: VerificationState = VerificationState.UNKNOWN
+
+
+class SearchPageSchema(BaseModel):
+    items: List[ScoredCandidateResponse]
+    total: int
+    page: int
+    page_size: int
