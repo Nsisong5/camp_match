@@ -37,3 +37,4 @@ class MarkReadyForDecisionUseCase:
                 actor_id=request.caller_id,
                 details="Marked ready for decision",
             )
+            await self.uow.commit()

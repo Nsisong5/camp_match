@@ -48,6 +48,7 @@ class ReviewEvidenceUseCase:
                 actor_id=request.caller_id,
                 details=f"Evidence {evidence.id} reviewed to {request.review_status.value}",
             )
+            await self.uow.commit()
 
         return ReviewEvidenceResponse(
             evidence_id=evidence.id,

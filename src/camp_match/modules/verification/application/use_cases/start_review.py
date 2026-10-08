@@ -37,3 +37,4 @@ class StartReviewUseCase:
                 actor_id=request.caller_id,
                 details="Review started",
             )
+            await self.uow.commit()

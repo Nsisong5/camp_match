@@ -64,5 +64,6 @@ class AssignInspectorUseCase:
                 actor_id=request.caller_id,
                 details=f"Inspector assigned to case",
             )
+            await self.uow.commit()
 
         return AssignInspectorResponse(inspection_id=inspection_id)

@@ -97,5 +97,6 @@ class AddEvidenceUseCase:
                 actor_id=request.caller_id,
                 details=f"Evidence type {request.evidence_type.value} added",
             )
+            await self.uow.commit()
 
         return AddEvidenceResponse(evidence_id=evidence_id)

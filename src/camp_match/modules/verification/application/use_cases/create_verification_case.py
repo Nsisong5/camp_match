@@ -76,5 +76,6 @@ class CreateVerificationCaseUseCase:
                 actor_id=request.caller_id,
                 details=f"Verification case created for {request.target_type.value}",
             )
+            await self.uow.commit()
 
         return CreateVerificationCaseResponse(case_id=case_id)

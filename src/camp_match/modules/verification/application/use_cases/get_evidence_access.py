@@ -67,5 +67,6 @@ class GetEvidenceAccessUseCase:
                 actor_id=request.caller_id,
                 details=f"Evidence {evidence.id} accessed",
             )
+            await self.uow.commit()
 
         return grant

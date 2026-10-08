@@ -156,6 +156,15 @@ async def add_evidence(
         raise HTTPException(status_code=422, detail=str(e))
 
 
+@router.get("/cases/mine", status_code=status.HTTP_200_OK)
+async def list_my_verification_cases(
+    identity_id: Annotated[EntityId, Depends(get_current_identity_id)],
+    case_repo=Depends(dependencies.get_verification_case_repo),
+) -> list:
+    use_case = ListMyVerificationCasesUseCase(case_repo)
+    return await use_case.execute(ListMyVerificationCasesRequest(caller_id=identity_id))
+
+
 @router.get("/cases/{case_id}", status_code=status.HTTP_200_OK)
 async def get_verification_case(
     case_id: str,
@@ -184,15 +193,6 @@ async def get_verification_case(
         raise HTTPException(status_code=404, detail="Verification case not found")
     except VerificationForbiddenError:
         raise HTTPException(status_code=403, detail="Forbidden")
-
-
-@router.get("/cases/mine", status_code=status.HTTP_200_OK)
-async def list_my_verification_cases(
-    identity_id: Annotated[EntityId, Depends(get_current_identity_id)],
-    case_repo=Depends(dependencies.get_verification_case_repo),
-) -> list:
-    use_case = ListMyVerificationCasesUseCase(case_repo)
-    return await use_case.execute(ListMyVerificationCasesRequest(caller_id=identity_id))
 
 
 @router.post("/cases/{case_id}/start-review", status_code=status.HTTP_200_OK)

@@ -45,3 +45,4 @@ class SubmitVerificationCaseUseCase:
                 actor_id=request.caller_id,
                 details="Verification case submitted",
             )
+            await self.uow.commit()

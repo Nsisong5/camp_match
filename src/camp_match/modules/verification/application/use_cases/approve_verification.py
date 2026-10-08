@@ -99,5 +99,6 @@ class ApproveVerificationUseCase:
                 actor_id=request.caller_id,
                 details=f"Verification approved: {request.reason}",
             )
+            await self.uow.commit()
 
         return ApproveVerificationResponse(case_id=case.id, expires_at=expires_at)

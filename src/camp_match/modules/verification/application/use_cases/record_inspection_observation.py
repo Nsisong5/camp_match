@@ -67,5 +67,6 @@ class RecordInspectionObservationUseCase:
                 actor_id=request.caller_id,
                 details=f"Observation for {request.item.value} recorded: {'passed' if request.passed else 'failed'}",
             )
+            await self.uow.commit()
 
         return RecordInspectionObservationResponse(observation_id=observation_id)

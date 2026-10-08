@@ -92,6 +92,7 @@ class CompleteInspectionUseCase:
                 actor_id=request.caller_id,
                 details=f"Inspection completed with result {result.value}",
             )
+            await self.uow.commit()
 
         return CompleteInspectionResponse(
             inspection_id=inspection.id,

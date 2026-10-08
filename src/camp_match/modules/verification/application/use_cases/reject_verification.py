@@ -71,3 +71,4 @@ class RejectVerificationUseCase:
                 actor_id=request.caller_id,
                 details=f"Verification rejected: {request.reason}",
             )
+            await self.uow.commit()

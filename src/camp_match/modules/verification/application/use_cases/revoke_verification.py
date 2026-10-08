@@ -62,6 +62,7 @@ class RevokeVerificationUseCase:
                 actor_id=request.caller_id,
                 details=f"Verification revoked: {request.revocation_reason}",
             )
+            await self.uow.commit()
 
         logger.warning(
             "verification_revoked_warning: case_id=%s revoked_by=%s reason=%s",

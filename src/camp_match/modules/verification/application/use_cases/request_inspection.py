@@ -37,3 +37,4 @@ class RequestInspectionUseCase:
                 actor_id=request.caller_id,
                 details="Inspection requested",
             )
+            await self.uow.commit()

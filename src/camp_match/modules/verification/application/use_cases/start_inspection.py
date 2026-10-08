@@ -52,5 +52,6 @@ class StartInspectionUseCase:
                 actor_id=request.caller_id,
                 details=f"Inspection {inspection.id} started",
             )
+            await self.uow.commit()
 
         return StartInspectionResponse(inspection_id=inspection.id)
