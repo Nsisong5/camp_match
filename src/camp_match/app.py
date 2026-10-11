@@ -14,6 +14,7 @@ from camp_match.modules.verification.adapters.api.router import (
     router as verification_router,
     public_router as verification_status_router,
 )
+from camp_match.modules.booking.adapters.api.router import router as booking_router
 from camp_match.platform.db.session import create_engine, create_session_factory
 from camp_match.platform.errors.http_error_handlers import register_error_handlers
 from camp_match.platform.logging.middleware import RequestIDMiddleware
@@ -43,6 +44,7 @@ def create_app() -> FastAPI:
     app.include_router(media_router)
     app.include_router(verification_router)
     app.include_router(verification_status_router)
+    app.include_router(booking_router)
 
     @app.get("/health", tags=["infrastructure"])
     async def health() -> dict[str, str]:

@@ -10,11 +10,13 @@ _ROLE_PERMISSIONS: dict[Role, frozenset[Permission]] = {
         Permission.VERIFICATION_MANAGE,
         Permission.VERIFICATION_INSPECT,
         Permission.VERIFICATION_REVIEW,
+        Permission.BOOKING_CONFIRM,
         Permission.EXAMPLE_TEST_PERMISSION,
     ]),
     Role.OPERATIONS: frozenset([
         Permission.VERIFICATION_INSPECT,
         Permission.VERIFICATION_REVIEW,
+        Permission.BOOKING_CONFIRM,
     ]),
     Role.STUDENT: frozenset(),
     Role.SCOUT: frozenset([

@@ -56,7 +56,7 @@ class UpdateProfileRequest:
 @dataclass(frozen=True)
 class UpdateStudentProfileRequest:
     identity_id: EntityId
-    university_name: str | None = None
+    university_id: EntityId | None = None
     department: str | None = None
     budget_min_naira: int | None = None
     budget_max_naira: int | None = None

@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from camp_match.modules.identity.adapters.api.dependencies import get_get_identity
 from camp_match.modules.profile.adapters.identity.identity_provider import InProcessIdentityProvider
 from camp_match.modules.profile.adapters.persistence.repository import SqlAlchemyProfileRepository
+from camp_match.modules.profile.adapters.university.university_provider import InProcessUniversityProvider
 from camp_match.modules.profile.application.use_cases.create_profile import CreateProfileUseCase
 from camp_match.modules.profile.application.use_cases.get_current_user_profile import (
     GetCurrentUserProfileUseCase,
@@ -19,6 +20,12 @@ from camp_match.modules.profile.application.use_cases.update_scout_profile impor
 )
 from camp_match.modules.profile.application.use_cases.update_student_profile import (
     UpdateStudentProfileUseCase,
+)
+from camp_match.modules.university_location.adapters.persistence.repository import (
+    SqlAlchemyUniversityRepository,
+)
+from camp_match.modules.university_location.application.use_cases.get_university import (
+    GetUniversityUseCase,
 )
 from camp_match.platform.clock import get_clock
 from camp_match.platform.db.session import get_db_session
@@ -35,6 +42,11 @@ def get_uow(session: Annotated[AsyncSession, Depends(get_db_session)]) -> UnitOf
 
 def get_identity_provider(get_identity_uc=Depends(get_get_identity)) -> InProcessIdentityProvider:
     return InProcessIdentityProvider(get_identity_uc)
+
+def get_university_provider(session: Annotated[AsyncSession, Depends(get_db_session)]) -> InProcessUniversityProvider:
+    uni_repo = SqlAlchemyUniversityRepository(session)
+    get_uni_uc = GetUniversityUseCase(uni_repo)
+    return InProcessUniversityProvider(get_uni_uc)
 
 def get_create_profile(
     repo: Annotated[SqlAlchemyProfileRepository, Depends(get_profile_repository)],
@@ -63,9 +75,10 @@ def get_update_profile(
 
 def get_update_student_profile(
     repo: Annotated[SqlAlchemyProfileRepository, Depends(get_profile_repository)],
+    uni_provider: Annotated[InProcessUniversityProvider, Depends(get_university_provider)],
     uow=Depends(get_uow),
 ) -> UpdateStudentProfileUseCase:
-    return UpdateStudentProfileUseCase(repo, uow)
+    return UpdateStudentProfileUseCase(repo, uni_provider, uow)
 
 def get_update_scout_profile(
     repo: Annotated[SqlAlchemyProfileRepository, Depends(get_profile_repository)],

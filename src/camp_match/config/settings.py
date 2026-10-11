@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     media_storage_path: str = "./var/media"
     media_access_token_secret: str = "media-secret-key-placeholder"
     media_access_token_ttl_seconds: int = 300
+    booking_hold_duration_minutes: int = 30
 
 
 @lru_cache

@@ -174,6 +174,11 @@ class BulkImport(Protocol):
         ...
 
 
+class GetMainCampus(Protocol):
+    async def execute(self, university_id: str) -> CampusSummary | None:
+        ...
+
+
 # --- Public Cross-Module Query Port ---
 
 @dataclass(frozen=True)
@@ -217,4 +222,7 @@ class UniversityLocationQueryPort(Protocol):
         ...
 
     async def list_campuses_for_university(self, university_id: str) -> list[CampusSummary]:
+        ...
+
+    async def get_main_campus(self, university_id: str) -> CampusSummary | None:
         ...

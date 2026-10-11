@@ -8,8 +8,12 @@ from camp_match.platform.db.session import get_db_session
 from camp_match.modules.search.adapters.housing.housing_provider import HousingProviderAdapter
 from camp_match.modules.search.adapters.university_location.university_location_provider import UniversityLocationProviderAdapter
 from camp_match.modules.search.adapters.verification.verification_provider import InProcessVerificationProvider
+from camp_match.modules.search.adapters.profile.profile_provider import ProfileProviderAdapter
 from camp_match.modules.search.domain.ranking import SearchRankingStrategy
 from camp_match.modules.search.application.use_cases.search_listings import SearchListings
+from camp_match.modules.search.application.use_cases.get_discovery_feed import GetDiscoveryFeed
+from camp_match.modules.search.application.strategies.recently_added import RecentlyAddedStrategy
+from camp_match.modules.search.application.strategies.recommended_for_you import RecommendedForYouStrategy
 
 
 def get_housing_provider(session: Annotated[AsyncSession, Depends(get_db_session)]) -> HousingProviderAdapter:
@@ -23,9 +27,15 @@ def get_housing_provider(session: Annotated[AsyncSession, Depends(get_db_session
 def get_university_location_provider(session: Annotated[AsyncSession, Depends(get_db_session)]) -> UniversityLocationProviderAdapter:
     univ_repo_mod = importlib.import_module("camp_match.modules.university_location.adapters.persistence.repository")
     get_campus_mod = importlib.import_module("camp_match.modules.university_location.application.use_cases.get_campus")
+    get_main_campus_mod = importlib.import_module("camp_match.modules.university_location.application.use_cases.get_main_campus")
+
     campus_repo = univ_repo_mod.SqlAlchemyCampusRepository(session)
-    query_port = get_campus_mod.GetCampusUseCase(campus_repo)
-    return UniversityLocationProviderAdapter(query_port)
+    uni_repo = univ_repo_mod.SqlAlchemyUniversityRepository(session)
+
+    get_campus_uc = get_campus_mod.GetCampusUseCase(campus_repo)
+    get_main_campus_uc = get_main_campus_mod.GetMainCampusUseCase(uni_repo, campus_repo)
+
+    return UniversityLocationProviderAdapter(get_campus_uc, get_main_campus_uc)
 
 
 def get_verification_provider(session: Annotated[AsyncSession, Depends(get_db_session)]) -> InProcessVerificationProvider:
@@ -40,6 +50,14 @@ def get_verification_provider(session: Annotated[AsyncSession, Depends(get_db_se
     return InProcessVerificationProvider(listing_repo, get_status_uc)
 
 
+def get_profile_provider(session: Annotated[AsyncSession, Depends(get_db_session)]) -> ProfileProviderAdapter:
+    profile_repo_mod = importlib.import_module("camp_match.modules.profile.adapters.persistence.repository")
+    profile_uc_mod = importlib.import_module("camp_match.modules.profile.application.use_cases.get_current_user_profile")
+    profile_repo = profile_repo_mod.SqlAlchemyProfileRepository(session)
+    get_profile_uc = profile_uc_mod.GetCurrentUserProfileUseCase(profile_repo)
+    return ProfileProviderAdapter(get_profile_uc)
+
+
 def get_search_listings_use_case(
     housing_provider: Annotated[HousingProviderAdapter, Depends(get_housing_provider)],
     univ_provider: Annotated[UniversityLocationProviderAdapter, Depends(get_university_location_provider)],
@@ -47,3 +65,18 @@ def get_search_listings_use_case(
 ) -> SearchListings:
     ranking_strategy = SearchRankingStrategy()
     return SearchListings(housing_provider, univ_provider, verif_provider, ranking_strategy)
+
+
+def get_discovery_feed_use_case(
+    housing_provider: Annotated[HousingProviderAdapter, Depends(get_housing_provider)],
+    univ_provider: Annotated[UniversityLocationProviderAdapter, Depends(get_university_location_provider)],
+    verif_provider: Annotated[InProcessVerificationProvider, Depends(get_verification_provider)],
+    profile_provider: Annotated[ProfileProviderAdapter, Depends(get_profile_provider)],
+) -> GetDiscoveryFeed:
+    recently_added = RecentlyAddedStrategy(housing_provider, verif_provider)
+    recommended = RecommendedForYouStrategy(housing_provider, profile_provider, univ_provider, verif_provider, recently_added)
+    return GetDiscoveryFeed({
+        "recently_added": recently_added,
+        "recommended": recommended,
+        "recommended_for_you": recommended,
+    })

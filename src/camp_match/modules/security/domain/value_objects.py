@@ -20,6 +20,7 @@ class Permission(Enum):
     VERIFICATION_MANAGE = "verification.manage"
     VERIFICATION_INSPECT = "verification.inspect"
     VERIFICATION_REVIEW = "verification.review"
+    BOOKING_CONFIRM = "booking.confirm"
     EXAMPLE_TEST_PERMISSION = "test.ownership.scoped"  # Test-only
 
 

@@ -1,0 +1,1 @@
+"""Booking verification adapters package."""

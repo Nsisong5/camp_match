@@ -11,6 +11,9 @@ class UniversityLocationProvider(Protocol):
     async def get_campus_coordinates(self, campus_id: EntityId) -> Coordinates | None:
         ...
 
+    async def get_main_campus_coordinates(self, university_id: EntityId) -> Coordinates | None:
+        ...
+
 class ProfileProvider(Protocol):
     async def get_student_preferences(self, identity_id: EntityId) -> dict | None:
         ...

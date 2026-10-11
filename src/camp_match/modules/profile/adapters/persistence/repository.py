@@ -39,16 +39,17 @@ class SqlAlchemyProfileRepository:
         )
         self._session.add(model)
         
-        if profile.profile_type == ProfileType.STUDENT and profile.student_details:
+        if profile.profile_type == ProfileType.STUDENT:
             details = StudentProfileModel(
                 profile_id=str(profile.id.value),
-                university_name=profile.student_details.university_name,
-                department=profile.student_details.department,
-                budget_min_naira=profile.student_details.budget_min_naira,
-                budget_max_naira=profile.student_details.budget_max_naira,
-                preferred_accommodation_type=profile.student_details.preferred_accommodation_type,
-                cleanliness_preference=profile.student_details.cleanliness_preference,
-                sleep_schedule=profile.student_details.sleep_schedule,
+                university_name=profile.student_details.university_name if profile.student_details else None,
+                university_id=profile.student_details.university_id.value if profile.student_details and profile.student_details.university_id else None,
+                department=profile.student_details.department if profile.student_details else None,
+                budget_min_naira=profile.student_details.budget_min_naira if profile.student_details else None,
+                budget_max_naira=profile.student_details.budget_max_naira if profile.student_details else None,
+                preferred_accommodation_type=profile.student_details.preferred_accommodation_type if profile.student_details else None,
+                cleanliness_preference=profile.student_details.cleanliness_preference if profile.student_details else None,
+                sleep_schedule=profile.student_details.sleep_schedule if profile.student_details else None,
             )
             self._session.add(details)
         elif profile.profile_type == ProfileType.SCOUT and profile.scout_details:
@@ -100,8 +101,12 @@ class SqlAlchemyProfileRepository:
         stmt = select(StudentProfileModel).where(StudentProfileModel.profile_id == str(profile.id.value))
         result = await self._session.execute(stmt)
         model = result.scalar_one_or_none()
+        if not model:
+            model = StudentProfileModel(profile_id=str(profile.id.value))
+            self._session.add(model)
         if model and profile.student_details:
             model.university_name = profile.student_details.university_name
+            model.university_id = profile.student_details.university_id.value if profile.student_details.university_id else None
             model.department = profile.student_details.department
             model.budget_min_naira = profile.student_details.budget_min_naira
             model.budget_max_naira = profile.student_details.budget_max_naira
@@ -129,6 +134,7 @@ class SqlAlchemyProfileRepository:
             details_model = result.scalar_one()
             student_details = StudentProfileDetails(
                 university_name=details_model.university_name,
+                university_id=EntityId(details_model.university_id) if details_model.university_id else None,
                 department=details_model.department,
                 budget_min_naira=details_model.budget_min_naira,
                 budget_max_naira=details_model.budget_max_naira,

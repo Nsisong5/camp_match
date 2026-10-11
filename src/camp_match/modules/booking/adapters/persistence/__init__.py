@@ -1,0 +1,1 @@
+"""Booking persistence adapters package."""

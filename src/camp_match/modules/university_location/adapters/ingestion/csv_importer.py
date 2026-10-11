@@ -14,8 +14,8 @@ logger = structlog.get_logger()
 
 # Documentation of CSV format:
 # Columns: type,name,institution_type,university_id,latitude,longitude
-# type: 'university' or 'campus'
-# For 'university': name, institution_type (must match InstitutionType enum values)
+# Record type: 'university' or 'campus'
+# For 'university': name, institution_type (match InstitutionType enum values)
 # For 'campus': university_id, name, latitude, longitude
 
 async def import_from_csv(

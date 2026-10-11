@@ -11,6 +11,14 @@ class IdentitySummary:
     email: str
     status: str
 
+
+@dataclass(frozen=True)
+class UniversitySummary:
+    id: EntityId
+    official_name: str
+    status: str
+
+
 class ProfileRepository(Protocol):
     async def add(self, profile: Profile) -> None: ...
     async def get_by_identity_id(self, identity_id: EntityId) -> Profile | None: ...
@@ -19,5 +27,10 @@ class ProfileRepository(Protocol):
     async def update_student_extension(self, profile: Profile) -> None: ...
     async def update_scout_extension(self, profile: Profile) -> None: ...
 
+
 class IdentityProvider(Protocol):
     async def get_identity(self, identity_id: EntityId) -> IdentitySummary | None: ...
+
+
+class UniversityProvider(Protocol):
+    async def get_university(self, university_id: EntityId) -> UniversitySummary | None: ...

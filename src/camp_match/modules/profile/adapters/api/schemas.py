@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from camp_match.modules.profile.domain.value_objects import (
     AccommodationTypePreference,
@@ -12,7 +12,7 @@ from camp_match.modules.profile.domain.value_objects import (
 
 
 class StudentDetailsSchema(BaseModel):
-    university_name: str | None = None
+    university: dict | None = None
     department: str | None = None
     budget_min_naira: int | None = None
     budget_max_naira: int | None = None
@@ -20,11 +20,15 @@ class StudentDetailsSchema(BaseModel):
     cleanliness_preference: CleanlinessPreference | None = None
     sleep_schedule: SleepSchedule | None = None
 
+    model_config = ConfigDict(from_attributes=True)
+
 class ScoutDetailsSchema(BaseModel):
     business_name: str | None = None
     business_description: str | None = None
     years_active: int | None = None
     availability_status: ScoutAvailabilityStatus | None = None
+
+    model_config = ConfigDict(from_attributes=True)
 
 class ProfileCreateRequest(BaseModel):
     display_name: str
@@ -42,13 +46,15 @@ class ProfileUpdateRequest(BaseModel):
     avatar_url: str | None = None
 
 class StudentProfileUpdateRequest(BaseModel):
-    university_name: str | None = None
+    university_id: UUID | None = None
     department: str | None = None
     budget_min_naira: int | None = None
     budget_max_naira: int | None = None
     preferred_accommodation_type: AccommodationTypePreference | None = None
     cleanliness_preference: CleanlinessPreference | None = None
     sleep_schedule: SleepSchedule | None = None
+
+    model_config = ConfigDict(extra="forbid")
 
 class ScoutProfileUpdateRequest(BaseModel):
     business_name: str | None = None
@@ -70,8 +76,7 @@ class ProfileResponseSchema(BaseModel):
     student_details: StudentDetailsSchema | None = None
     scout_details: ScoutDetailsSchema | None = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class PublicProfileResponseSchema(BaseModel):
     id: UUID
@@ -82,8 +87,7 @@ class PublicProfileResponseSchema(BaseModel):
     avatar_url: str | None = None
     avatar_media_id: UUID | None = None
     avatar: dict | None = None
-    student_details: dict | None = None
-    scout_details: dict | None = None
+    student_details: StudentDetailsSchema | None = None
+    scout_details: ScoutDetailsSchema | None = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

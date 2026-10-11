@@ -1,0 +1,1 @@
+"""Booking integration tests package."""

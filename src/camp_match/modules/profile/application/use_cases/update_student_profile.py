@@ -1,19 +1,27 @@
 import structlog
+from uuid import UUID
 
-from camp_match.modules.profile.application.errors import ProfileNotFound, UnsupportedProfileType
+from camp_match.modules.profile.application.errors import ProfileNotFound, UnsupportedProfileType, InvalidProfileData
 from camp_match.modules.profile.application.ports.inbound import (
     ProfileResponse,
     UpdateStudentProfileRequest,
 )
-from camp_match.modules.profile.application.ports.outbound import ProfileRepository
+from camp_match.modules.profile.application.ports.outbound import ProfileRepository, UniversityProvider
 from camp_match.modules.profile.domain.value_objects import StudentProfileDetails
+from camp_match.shared_kernel.domain.identifiers import EntityId
 from camp_match.shared_kernel.application.unit_of_work import UnitOfWork
 
 logger = structlog.get_logger()
 
 class UpdateStudentProfileUseCase:
-    def __init__(self, repository: ProfileRepository, uow: UnitOfWork) -> None:
+    def __init__(
+        self,
+        repository: ProfileRepository,
+        university_provider: UniversityProvider,
+        uow: UnitOfWork,
+    ) -> None:
         self._repository = repository
+        self._university_provider = university_provider
         self._uow = uow
 
     async def execute(self, request: UpdateStudentProfileRequest) -> ProfileResponse:
@@ -25,8 +33,26 @@ class UpdateStudentProfileUseCase:
             raise UnsupportedProfileType("Not a student profile")
             
         current = profile.student_details
+        
+        new_university_id = current.university_id
+        new_university_name = current.university_name
+
+        if request.university_id is not None:
+            req_uni_id = request.university_id
+            if not isinstance(req_uni_id, EntityId):
+                if isinstance(req_uni_id, UUID):
+                    req_uni_id = EntityId(req_uni_id)
+                elif isinstance(req_uni_id, str):
+                    req_uni_id = EntityId.from_string(req_uni_id)
+            uni = await self._university_provider.get_university(req_uni_id)
+            if not uni:
+                raise InvalidProfileData(f"University with id {req_uni_id} not found.")
+            new_university_id = req_uni_id
+            new_university_name = None  # Clear legacy university_name when canonical university_id is set
+
         new_details = StudentProfileDetails(
-            university_name=request.university_name if request.university_name is not None else current.university_name,
+            university_name=new_university_name,
+            university_id=new_university_id,
             department=request.department if request.department is not None else current.department,
             budget_min_naira=request.budget_min_naira if request.budget_min_naira is not None else current.budget_min_naira,
             budget_max_naira=request.budget_max_naira if request.budget_max_naira is not None else current.budget_max_naira,
@@ -36,8 +62,9 @@ class UpdateStudentProfileUseCase:
         )
         
         profile.update_student_details(new_details)
-        await self._repository.update_student_extension(profile)
-        await self._uow.commit()
+        async with self._uow:
+            await self._repository.update_student_extension(profile)
+            await self._uow.commit()
         
         logger.info("student_profile_updated", identity_id=str(request.identity_id), profile_id=str(profile.id))
         

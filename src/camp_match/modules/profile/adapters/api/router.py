@@ -21,6 +21,7 @@ from camp_match.modules.profile.adapters.api.dependencies import (
     get_update_profile,
     get_update_scout_profile,
     get_update_student_profile,
+    get_university_provider,
     get_uow,
 )
 from camp_match.modules.profile.application.ports.inbound import (
@@ -63,12 +64,57 @@ async def _build_avatar_response(profile, get_access_uc=None):
     return None
 
 
+async def _build_student_details_response(student_details_dict, profile_obj, university_provider):
+    details = getattr(profile_obj, "student_details", None) if profile_obj else None
+    if isinstance(details, dict):
+        student_details_dict = details
+        details = None
+
+    uni_id = getattr(details, "university_id", None) if details else (student_details_dict.get("university_id") if student_details_dict else None)
+    uni_name = getattr(details, "university_name", None) if details else (student_details_dict.get("university_name") if student_details_dict else None)
+
+    if uni_id is not None and not isinstance(uni_id, EntityId):
+        try:
+            if isinstance(uni_id, UUID):
+                uni_id = EntityId(uni_id)
+            elif isinstance(uni_id, str) and uni_id.strip():
+                uni_id = EntityId.from_string(uni_id)
+            else:
+                uni_id = None
+        except Exception:
+            uni_id = None
+
+    univ_obj = None
+    if uni_id and university_provider:
+        uni_sum = await university_provider.get_university(uni_id)
+        if uni_sum:
+            univ_obj = {
+                "type": "canonical",
+                "value": {
+                    "id": str(uni_sum.id.value if hasattr(uni_sum.id, "value") else uni_sum.id),
+                    "official_name": uni_sum.official_name,
+                }
+            }
+    if not univ_obj and uni_name:
+        univ_obj = {
+            "type": "legacy_text",
+            "value": uni_name,
+        }
+
+    base_dict = dict(student_details_dict) if student_details_dict else (details.to_dict() if details and hasattr(details, "to_dict") else {})
+    base_dict["university"] = univ_obj
+    base_dict.pop("university_name", None)
+    base_dict.pop("university_id", None)
+    return base_dict
+
+
 @router.post("", response_model=schemas.ProfileResponseSchema, status_code=status.HTTP_201_CREATED)
 async def create_profile(
     data: Annotated[schemas.ProfileCreateRequest, Body(...)],
     identity_id: Annotated[EntityId, Depends(get_current_identity_id)],
     use_case=Depends(get_create_profile),
     get_access_uc=Depends(get_get_authorized_access),
+    university_provider=Depends(get_university_provider),
 ) -> schemas.ProfileResponseSchema:
     request = CreateProfileRequest(
         identity_id=identity_id,
@@ -76,6 +122,7 @@ async def create_profile(
     )
     result = await use_case.execute(request)
     avatar_obj = await _build_avatar_response(result, get_access_uc)
+    student_details_res = await _build_student_details_response(result.student_details, result, university_provider)
     return schemas.ProfileResponseSchema(
         id=result.id.value,
         identity_id=result.identity_id.value,
@@ -87,7 +134,7 @@ async def create_profile(
         avatar_url=result.avatar_url,
         avatar_media_id=result.avatar_media_id.value if result.avatar_media_id else None,
         avatar=avatar_obj,
-        student_details=result.student_details,
+        student_details=student_details_res,
         scout_details=result.scout_details,
     )
 
@@ -100,6 +147,7 @@ async def upload_avatar(
     upload_media_uc=Depends(get_upload_media),
     get_access_uc=Depends(get_get_authorized_access),
     uow=Depends(get_uow),
+    university_provider=Depends(get_university_provider),
 ) -> schemas.ProfileResponseSchema:
     profile = await repo.get_by_identity_id(identity_id)
     if not profile:
@@ -121,6 +169,7 @@ async def upload_avatar(
         await uow.commit()
 
     avatar_obj = await _build_avatar_response(profile, get_access_uc)
+    student_details_res = await _build_student_details_response(profile.student_details.to_dict() if profile.student_details else None, profile, university_provider)
     return schemas.ProfileResponseSchema(
         id=profile.id.value,
         identity_id=profile.identity_id.value,
@@ -132,7 +181,7 @@ async def upload_avatar(
         avatar_url=profile.avatar_url,
         avatar_media_id=profile.avatar_media_id.value if profile.avatar_media_id else None,
         avatar=avatar_obj,
-        student_details=profile.student_details.to_dict() if profile.student_details else None,
+        student_details=student_details_res,
         scout_details=profile.scout_details.to_dict() if profile.scout_details else None,
     )
 
@@ -142,10 +191,12 @@ async def get_current_user_profile(
     identity_id: Annotated[EntityId, Depends(get_current_identity_id)],
     use_case=Depends(get_get_current_user_profile),
     get_access_uc=Depends(get_get_authorized_access),
+    university_provider=Depends(get_university_provider),
 ) -> schemas.ProfileResponseSchema:
     request = GetProfileRequest(identity_id=identity_id)
     result = await use_case.execute(request)
     avatar_obj = await _build_avatar_response(result, get_access_uc)
+    student_details_res = await _build_student_details_response(result.student_details, result, university_provider)
     return schemas.ProfileResponseSchema(
         id=result.id.value,
         identity_id=result.identity_id.value,
@@ -157,7 +208,7 @@ async def get_current_user_profile(
         avatar_url=result.avatar_url,
         avatar_media_id=result.avatar_media_id.value if result.avatar_media_id else None,
         avatar=avatar_obj,
-        student_details=result.student_details,
+        student_details=student_details_res,
         scout_details=result.scout_details,
     )
 
@@ -167,10 +218,12 @@ async def get_public_profile(
     profile_id: UUID,
     use_case=Depends(get_get_public_profile),
     get_access_uc=Depends(get_get_authorized_access),
+    university_provider=Depends(get_university_provider),
 ) -> schemas.PublicProfileResponseSchema:
     request = GetPublicProfileRequest(profile_id=EntityId(profile_id))
     result = await use_case.execute(request)
     avatar_obj = await _build_avatar_response(result, get_access_uc)
+    student_details_res = await _build_student_details_response(result.student_details, result, university_provider)
     return schemas.PublicProfileResponseSchema(
         id=result.id.value,
         profile_type=result.profile_type,
@@ -180,7 +233,7 @@ async def get_public_profile(
         avatar_url=result.avatar_url,
         avatar_media_id=result.avatar_media_id.value if result.avatar_media_id else None,
         avatar=avatar_obj,
-        student_details=result.student_details,
+        student_details=student_details_res,
         scout_details=result.scout_details,
     )
 
@@ -191,10 +244,12 @@ async def update_profile(
     identity_id: Annotated[EntityId, Depends(get_current_identity_id)],
     use_case=Depends(get_update_profile),
     get_access_uc=Depends(get_get_authorized_access),
+    university_provider=Depends(get_university_provider),
 ) -> schemas.ProfileResponseSchema:
     request = UpdateProfileRequest(identity_id=identity_id, **data.model_dump(exclude_unset=True))
     result = await use_case.execute(request)
     avatar_obj = await _build_avatar_response(result, get_access_uc)
+    student_details_res = await _build_student_details_response(result.student_details, result, university_provider)
     return schemas.ProfileResponseSchema(
         id=result.id.value,
         identity_id=result.identity_id.value,
@@ -206,7 +261,7 @@ async def update_profile(
         avatar_url=result.avatar_url,
         avatar_media_id=result.avatar_media_id.value if result.avatar_media_id else None,
         avatar=avatar_obj,
-        student_details=result.student_details,
+        student_details=student_details_res,
         scout_details=result.scout_details,
     )
 
@@ -217,10 +272,12 @@ async def update_student_profile(
     identity_id: Annotated[EntityId, Depends(get_current_identity_id)],
     use_case=Depends(get_update_student_profile),
     get_access_uc=Depends(get_get_authorized_access),
+    university_provider=Depends(get_university_provider),
 ) -> schemas.ProfileResponseSchema:
     request = UpdateStudentProfileRequest(identity_id=identity_id, **data.model_dump(exclude_unset=True))
     result = await use_case.execute(request)
     avatar_obj = await _build_avatar_response(result, get_access_uc)
+    student_details_res = await _build_student_details_response(result.student_details, result, university_provider)
     return schemas.ProfileResponseSchema(
         id=result.id.value,
         identity_id=result.identity_id.value,
@@ -232,7 +289,7 @@ async def update_student_profile(
         avatar_url=result.avatar_url,
         avatar_media_id=result.avatar_media_id.value if result.avatar_media_id else None,
         avatar=avatar_obj,
-        student_details=result.student_details,
+        student_details=student_details_res,
         scout_details=result.scout_details,
     )
 
@@ -243,10 +300,13 @@ async def update_scout_profile(
     identity_id: Annotated[EntityId, Depends(get_current_identity_id)],
     use_case=Depends(get_update_scout_profile),
     get_access_uc=Depends(get_get_authorized_access),
+    university_provider=Depends(get_university_provider),
 ) -> schemas.ProfileResponseSchema:
+    request = UpdateProfileRequest(identity_id=identity_id, **data.model_dump(exclude_unset=True)) # wait, UpdateScoutProfileRequest
     request = UpdateScoutProfileRequest(identity_id=identity_id, **data.model_dump(exclude_unset=True))
     result = await use_case.execute(request)
     avatar_obj = await _build_avatar_response(result, get_access_uc)
+    student_details_res = await _build_student_details_response(result.student_details, result, university_provider)
     return schemas.ProfileResponseSchema(
         id=result.id.value,
         identity_id=result.identity_id.value,
@@ -258,6 +318,6 @@ async def update_scout_profile(
         avatar_url=result.avatar_url,
         avatar_media_id=result.avatar_media_id.value if result.avatar_media_id else None,
         avatar=avatar_obj,
-        student_details=result.student_details,
+        student_details=student_details_res,
         scout_details=result.scout_details,
     )

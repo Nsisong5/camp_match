@@ -27,6 +27,7 @@ class StudentProfileModel(Base):
     __tablename__ = "student_profiles"
     profile_id = Column(UUID(as_uuid=True), ForeignKey("profiles.id"), primary_key=True)
     university_name = Column(String, nullable=True)
+    university_id = Column(UUID(as_uuid=True), nullable=True, index=True)
     department = Column(String, nullable=True)
     budget_min_naira = Column(Integer, nullable=True)
     budget_max_naira = Column(Integer, nullable=True)

@@ -23,6 +23,7 @@ from camp_match.modules.verification.adapters.persistence.models import (
     VerificationDecisionModel,
     VerificationHistoryModel,
 )
+from camp_match.modules.booking.adapters.persistence.models import BookingModel
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
