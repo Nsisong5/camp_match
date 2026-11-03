@@ -1,0 +1,59 @@
+# Decisions
+- ADR-052: Three-tier model (Property -> Unit -> Listing).
+- ADR-053: Amenity split (property-wide vs unit-specific).
+- ADR-054: Bookability status is derived, not stored.
+- ADR-055: Module-specific value objects/adapters (duplicate pattern, not code).
+- ADR-056: Atomic reservation using `UPDATE ... WHERE`.
+- ADR-057: No security check on creation (owner created = owner owned).
+- ADR-058: HOUSING_MANAGE is the first real ownership-scoped permission.
+- ADR-059: GET /listings is a basic browse endpoint (placeholder).
+- ADR-060: No independent DuplicateProperty/UnauthorizedListingOperation error implementations.
+- ADR-061: Housing's new port does coarse, index-friendly pre-filtering only.
+- ADR-062: Campus-proximity discovery personalization is not implemented (Finding 1) -> *Retired by ADR-091/092*.
+- ADR-063: VerificationQueryPort is backed by a NullVerificationProvider stub.
+- ADR-064: Search module has no persistence of its own.
+- ADR-065: Missing ranking factors are dropped and weights renormalized.
+- ADR-066: Price filter requires an exact billing_period; no silent cross-period comparison.
+- ADR-067: Recommended for you degrades to recently added if no profile exists.
+- ADR-068: Distance computed with Haversine formula on latitude/longitude, no PostGIS.
+- ADR-078: Storage backend is local filesystem (`./var/media`) for MVP, behind swappable `StoragePort`.
+- ADR-079: Owning modules handle uploads; Media/File has no generic upload route.
+- ADR-080: Media access enforcement split: Media/File serves public media; consuming modules authorize private media.
+- ADR-081: Time-limited signed token access for streaming (HMAC-SHA256, 5-minute TTL).
+- ADR-082: File constraints governed by static policy mapping per purpose.
+- ADR-083: Content-type sniffing via magic bytes, ignoring client headers.
+- ADR-084: Soft-deletion only (status=DELETED) preserving metadata for auditability.
+- ADR-085: Downstream dual-field compatibility for legacy URLs during migration.
+- ADR-089: Profile `university_name` deprecated in favor of canonical `university_id` referencing University & Location module, with no automatic backfill.
+- ADR-090: Profile and University & Location maintain loose coupling via UUID reference without direct database foreign keys.
+- ADR-091: Search & Discovery discovery ranking rebalanced to include proximity weight (Preference match 0.40, Proximity 0.20, Verification 0.20, Freshness 0.20).
+- ADR-092: Proximity ranking excludes and renormalizes weights if `university_id` is unset or `get_main_campus_coordinates` returns `None`.
+- ADR-093: University & Location adds `get_main_campus` query port for in-process cross-module resolution.
+- ADR-129: Notification module design (in-app notification inbox, templated text).
+- ADR-130: No external notification channels or delivery attempt persistence for MVP.
+- ADR-131: At-most-once event publishing via best-effort publish after commit.
+- ADR-132: Idempotent event reception via inbox with `ON CONFLICT (event_id) DO NOTHING`.
+- ADR-133: Strict event payload validation and parser rejection (`REJECTED`).
+- ADR-134: Notification module integrates Messaging, Booking, and Verification; Payment and Housing domain events are excluded from MVP.
+- ADR-135: Single-transaction inbox processing with exponential backoff retry and dead-letter queue (`DEAD`).
+- ADR-136: Message notification collapsing (`group_key` upsert incrementing `event_count` while unread).
+- ADR-137: Localization-independent notification text rendered from predefined templates.
+- ADR-138: Strict user isolation and data privacy (no personal data or message text in notification titles/bodies).
+- ADR-139: Polling REST API for notifications (no real-time WebSocket push for notifications).
+- ADR-140: Single event-bus factory (`build_event_bus`) and registration guard test.
+- ADR-141: Manual or cron-based worker execution (no background daemon for inbox worker).
+- ADR-142: No retention or purge policy for notifications in MVP.
+- ADR-143: Approved small event-contract amendments to Booking and Verification.
+- ADR-162: Admin & Operations module (Module 14) design for backend internal staff tools and administration.
+- ADR-163: Overview dashboard aggregation with live section status (`OK`, `UNAVAILABLE`, `NOT_AUTHORIZED`).
+- ADR-164: Operational support issue tracker with staff-only creation, idempotency, and immutable event history.
+- ADR-165: Audited account disable/reactivate operations with mandatory reason and administrator protection.
+- ADR-166: Staff role management for granting/revoking `OPERATIONS` role.
+- ADR-167: Recovery actions for requeuing dead notification events and failed safety enforcements.
+- ADR-168: Immutable append-only audit trail with request/outcome logging and uncertain action detection.
+- ADR-169: Admin role management is script-only and unaudited by design.
+- ADR-170: Retirement of unaudited Identity admin routes in favor of audited Admin & Operations account endpoints.
+- ADR-171: Strict database immutability triggers on audit and issue history tables.
+- ADR-172: Live computation of overview metrics with no historical caching.
+- ADR-173: No customer ticket intake or staff reporting of safety issues in MVP.
+- ADR-174: No payment/booking exception views or background-job health monitoring beyond owners' backlogs.

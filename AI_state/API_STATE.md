@@ -1,0 +1,21 @@
+# API State: Admin & Operations
+- Routes added under `/api/v1/admin`:
+  - `GET /api/v1/admin/overview`
+  - `GET /api/v1/admin/operations/issues`
+  - `POST /api/v1/admin/operations/issues`
+  - `GET /api/v1/admin/operations/issues/{id}`
+  - `POST /api/v1/admin/operations/issues/{id}/assign`
+  - `POST /api/v1/admin/operations/issues/{id}/resolve`
+  - `POST /api/v1/admin/operations/issues/{id}/status`
+  - `GET /api/v1/admin/audit-events`
+  - `GET /api/v1/admin/accounts/{id}`
+  - `POST /api/v1/admin/accounts/{id}/disable`
+  - `POST /api/v1/admin/accounts/{id}/reactivate`
+  - `GET /api/v1/admin/staff`
+  - `POST /api/v1/admin/staff/{id}/roles`
+  - `POST /api/v1/admin/staff/{id}/roles/{role}/revoke`
+  - `POST /api/v1/admin/recovery/notification-events/requeue-dead`
+  - `POST /api/v1/admin/recovery/safety-enforcement/requeue-failed`
+- Retired routes:
+  - `POST /api/v1/auth/{identity_id}/disable`
+  - `POST /api/v1/auth/{identity_id}/reactivate`

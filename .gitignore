@@ -28,7 +28,7 @@ build/
 .env
 
 # AI State (Private)
-AI_state/
+
 
 current_instruction.txt
 
@@ -37,7 +37,7 @@ cin.md
 
 
 # AI and Instruction files
-AI_instructions/
+
 current_instruction.txt
 
 # Dump text files
@@ -61,12 +61,9 @@ diagnose_*.py
 reproduce_*.py
 test_*.py
 
-# Local state
-AI_state/
+# Local stat
 
 
-modules_docs/
-module_docs/
 
 #property creation
 
