@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from camp_match.modules.verification.application.errors import (
     InspectionNotFound,
-    VerificationForbiddenError,
     InvalidVerificationTransition,
+    VerificationForbiddenError,
 )
 from camp_match.modules.verification.application.ports.inbound import (
     StartInspectionRequest,
@@ -42,7 +42,7 @@ class StartInspectionUseCase:
             raise InvalidVerificationTransition("Inspection must be in ASSIGNED status to start.")
 
         inspection.status = InspectionStatus.IN_PROGRESS
-        inspection.started_at = datetime.now(timezone.utc)
+        inspection.started_at = datetime.now(UTC)
 
         async with self.uow:
             await self.inspection_repo.update(inspection)

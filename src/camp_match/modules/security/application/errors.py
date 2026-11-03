@@ -30,3 +30,7 @@ class RoleNotFoundError(NotFoundError):
 
 class PolicyViolationError(ForbiddenError):
     code = "policy_violation"
+
+
+class RoleNotManageable(ValidationError):
+    code = "role_not_manageable"

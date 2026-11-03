@@ -6,8 +6,8 @@ from camp_match.modules.university_location.application.ports.outbound import (
     CampusRepository,
     UniversityRepository,
 )
-from camp_match.shared_kernel.domain.identifiers import EntityId
 from camp_match.shared_kernel.application.pagination import PageRequest
+from camp_match.shared_kernel.domain.identifiers import EntityId
 
 
 class GetMainCampusUseCase(GetMainCampus):

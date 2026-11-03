@@ -1,8 +1,12 @@
-from datetime import datetime, timezone
-from camp_match.modules.search.application.strategies.discovery_strategy import DiscoveryStrategy
-from camp_match.modules.search.domain.value_objects import ScoredCandidate, CandidateListing, VerificationState
-from camp_match.shared_kernel.domain.identifiers import EntityId
+from datetime import datetime
+
+from camp_match.modules.search.domain.value_objects import (
+    ScoredCandidate,
+    VerificationState,
+)
 from camp_match.shared_kernel.application.pagination import Page, PageRequest
+from camp_match.shared_kernel.domain.identifiers import EntityId
+
 
 class RecentlyAddedStrategy:
     def __init__(self, housing_provider, verification_provider) -> None:

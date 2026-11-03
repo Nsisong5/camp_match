@@ -1,21 +1,23 @@
+
 from pydantic import BaseModel, Field
-from typing import List, Optional
+
 from camp_match.modules.search.domain.value_objects import (
     AccommodationType,
-    BillingPeriod,
     Amenity,
+    BillingPeriod,
     SortOption,
     VerificationState,
 )
 
+
 class SearchRequestSchema(BaseModel):
-    campus_id: Optional[str] = None
-    min_price_kobo: Optional[int] = Field(None, ge=0)
-    max_price_kobo: Optional[int] = Field(None, ge=0)
-    billing_period: Optional[BillingPeriod] = None
-    accommodation_type: Optional[AccommodationType] = None
-    amenities: List[Amenity] = []
-    max_distance_km: Optional[float] = Field(None, gt=0)
+    campus_id: str | None = None
+    min_price_kobo: int | None = Field(None, ge=0)
+    max_price_kobo: int | None = Field(None, ge=0)
+    billing_period: BillingPeriod | None = None
+    accommodation_type: AccommodationType | None = None
+    amenities: list[Amenity] = []
+    max_distance_km: float | None = Field(None, gt=0)
     verified_only: bool = False
     sort_by: SortOption = SortOption.RELEVANCE
 
@@ -28,17 +30,17 @@ class CandidateListingResponse(BaseModel):
     price_currency: str
     price_period: BillingPeriod
     available_count: int
-    media: List[dict] = []
+    media: list[dict] = []
 
 class ScoredCandidateResponse(BaseModel):
     listing: CandidateListingResponse
     score: float
-    distance_km: Optional[float] = None
+    distance_km: float | None = None
     verification_state: VerificationState = VerificationState.UNKNOWN
 
 
 class SearchPageSchema(BaseModel):
-    items: List[ScoredCandidateResponse]
+    items: list[ScoredCandidateResponse]
     total: int
     page: int
     page_size: int

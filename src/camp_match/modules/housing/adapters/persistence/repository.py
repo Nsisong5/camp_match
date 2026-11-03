@@ -3,8 +3,7 @@ from __future__ import annotations
 import uuid
 from typing import TYPE_CHECKING
 
-from sqlalchemy import select, and_, update, func
-from sqlalchemy.orm import selectinload
+from sqlalchemy import and_, func, select, update
 
 from camp_match.modules.housing.adapters.persistence.models import (
     ListingMediaModel,
@@ -22,8 +21,8 @@ from camp_match.modules.housing.domain.value_objects import (
     PropertyStatus,
     PropertyType,
 )
-from camp_match.shared_kernel.domain.identifiers import EntityId
 from camp_match.shared_kernel.application.pagination import Page, PageRequest
+from camp_match.shared_kernel.domain.identifiers import EntityId
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -191,6 +190,7 @@ class SqlAlchemyListingRepository:
             price_currency=listing.price.currency.value,
             price_period=listing.price.period.value,
             status=listing.status.value,
+            suspension_reference=listing.suspension_reference.value if listing.suspension_reference else None,
         )
         self._session.add(model)
 
@@ -209,6 +209,7 @@ class SqlAlchemyListingRepository:
             model.description = listing.description
             model.price_amount_kobo = listing.price.amount_kobo
             model.status = listing.status.value
+            model.suspension_reference = listing.suspension_reference.value if listing.suspension_reference else None
 
     async def get_by_unit_id(self, unit_id: EntityId) -> Listing | None:
         stmt = select(ListingModel).where(ListingModel.unit_id == unit_id.value)
@@ -292,6 +293,7 @@ class SqlAlchemyListingRepository:
                 period=BillingPeriod(model.price_period),
             ),
             status=ListingStatus(model.status),
+            suspension_reference=EntityId(model.suspension_reference) if model.suspension_reference else None,
             created_at=model.created_at,
             updated_at=model.updated_at,
         )

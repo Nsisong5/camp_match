@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from camp_match.modules.housing.application.ports.outbound import ListingRepository
 from camp_match.modules.search.application.ports.outbound import VerificationProvider
 from camp_match.modules.search.domain.value_objects import VerificationState
 from camp_match.modules.verification.application.ports.inbound import GetVerificationStatusRequest
-from camp_match.modules.verification.application.use_cases.get_verification_status import GetVerificationStatusUseCase
+from camp_match.modules.verification.application.use_cases.get_verification_status import (
+    GetVerificationStatusUseCase,
+)
 from camp_match.modules.verification.domain.value_objects import VerificationTargetType
-from camp_match.modules.housing.application.ports.outbound import ListingRepository
 from camp_match.shared_kernel.domain.identifiers import EntityId
 
 

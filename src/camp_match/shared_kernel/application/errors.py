@@ -26,3 +26,11 @@ class UnauthorizedError(ApplicationError):
 
 class ForbiddenError(ApplicationError):
     """The caller is authenticated but not permitted to perform this action."""
+
+
+class RateLimitedError(ApplicationError):
+    """The request rate limit has been exceeded."""
+
+    def __init__(self, message: str, retry_after_seconds: int | None = None) -> None:
+        super().__init__(message)
+        self.retry_after_seconds = retry_after_seconds

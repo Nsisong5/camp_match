@@ -1,14 +1,13 @@
 from __future__ import annotations
 
-from datetime import datetime, date
+from datetime import date, datetime
 from uuid import UUID
+
 from pydantic import BaseModel
 
 from camp_match.modules.verification.domain.value_objects import (
     ChecklistItem,
     EvidenceReviewStatus,
-    EvidenceType,
-    InspectionResult,
     VerificationStatus,
     VerificationTargetType,
 )

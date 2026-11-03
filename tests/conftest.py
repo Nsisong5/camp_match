@@ -31,7 +31,8 @@ async def setup_test_db():
 
     await engine.dispose()
 
-    # Import models so Base.metadata knows about them
+    import subprocess
+    subprocess.run(["poetry", "run", "alembic", "upgrade", "head"], check=True)
 
     yield
 
@@ -41,9 +42,12 @@ async def clear_db(setup_test_db):
     settings = get_settings()
     test_engine = create_async_engine(settings.database_url)
     async with test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-        await conn.run_sync(Base.metadata.create_all)
+        await conn.execute(text("DROP SCHEMA public CASCADE"))
+        await conn.execute(text("CREATE SCHEMA public"))
     await test_engine.dispose()
+
+    import subprocess
+    subprocess.run(["poetry", "run", "alembic", "upgrade", "head"], check=True)
     yield
 
 @pytest.fixture

@@ -1,4 +1,7 @@
-from camp_match.modules.profile.application.ports.outbound import UniversityProvider, UniversitySummary
+from camp_match.modules.profile.application.ports.outbound import (
+    UniversityProvider,
+    UniversitySummary,
+)
 from camp_match.modules.university_location.application.ports.inbound import GetUniversity
 from camp_match.shared_kernel.domain.identifiers import EntityId
 

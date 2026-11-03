@@ -1,11 +1,15 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-from camp_match.modules.verification.application.ports.outbound import MediaProvider, AccessGrant
-from camp_match.modules.media.application.ports.inbound import UploadMediaRequest, GetAuthorizedAccessRequest
+from camp_match.modules.media.application.ports.inbound import (
+    GetAuthorizedAccessRequest,
+    UploadMediaRequest,
+)
+from camp_match.modules.media.application.use_cases.get_authorized_access import (
+    GetAuthorizedAccessUseCase,
+)
 from camp_match.modules.media.application.use_cases.upload_media import UploadMediaUseCase
-from camp_match.modules.media.application.use_cases.get_authorized_access import GetAuthorizedAccessUseCase
-from camp_match.modules.media.domain.value_objects import AccessPolicy, MediaPurpose
+from camp_match.modules.media.domain.value_objects import MediaPurpose
+from camp_match.modules.verification.application.ports.outbound import AccessGrant, MediaProvider
 from camp_match.shared_kernel.domain.identifiers import EntityId
 
 

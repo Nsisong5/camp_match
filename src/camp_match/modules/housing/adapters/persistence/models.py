@@ -5,19 +5,17 @@ from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import (
+    BigInteger,
+    Boolean,
     CheckConstraint,
-    Column,
+    DateTime,
     ForeignKey,
+    Integer,
     Numeric,
     String,
-    UniqueConstraint,
-    Integer,
-    Boolean,
-    BigInteger,
-    DateTime,
     func,
 )
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from camp_match.platform.db.base import Base
 
@@ -82,13 +80,14 @@ class ListingModel(Base):
     price_currency: Mapped[str] = mapped_column(String, nullable=False, default="NGN")
     price_period: Mapped[str] = mapped_column(String, nullable=False)
     status: Mapped[str] = mapped_column(String, nullable=False, default="DRAFT", index=True)
+    suspension_reference: Mapped[UUID | None] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     __table_args__ = (
         CheckConstraint("price_amount_kobo >= 0", name="check_price_non_negative"),
         CheckConstraint("price_currency = 'NGN'", name="check_currency_ngn"),
-        CheckConstraint("status IN ('DRAFT', 'PUBLISHED', 'UNAVAILABLE', 'ARCHIVED')", name="check_listing_status"),
+        CheckConstraint("status IN ('DRAFT', 'PUBLISHED', 'UNAVAILABLE', 'ARCHIVED', 'SUSPENDED')", name="check_listing_status"),
     )
 
 

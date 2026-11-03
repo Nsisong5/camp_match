@@ -2,12 +2,15 @@ from __future__ import annotations
 
 from typing import Annotated
 from uuid import UUID
-from fastapi import APIRouter, Depends, status, Query
 
-from camp_match.modules.booking.adapters.api import schemas, dependencies
+from fastapi import APIRouter, Depends, Query, status
+
+from camp_match.modules.booking.adapters.api import dependencies, schemas
 from camp_match.modules.booking.application.ports.inbound import (
     CancelBookingRequest,
     ConfirmBookingRequest,
+    ConfirmHandoverAcceptedRequest,
+    ConfirmHandoverOfferedRequest,
     CreateBookingRequest,
     GetBookingRequest,
     ListBookingsForPropertyRequest,
@@ -15,6 +18,12 @@ from camp_match.modules.booking.application.ports.inbound import (
 )
 from camp_match.modules.booking.application.use_cases.cancel_booking import CancelBookingUseCase
 from camp_match.modules.booking.application.use_cases.confirm_booking import ConfirmBookingUseCase
+from camp_match.modules.booking.application.use_cases.confirm_handover_accepted import (
+    ConfirmHandoverAcceptedUseCase,
+)
+from camp_match.modules.booking.application.use_cases.confirm_handover_offered import (
+    ConfirmHandoverOfferedUseCase,
+)
 from camp_match.modules.booking.application.use_cases.create_booking import CreateBookingUseCase
 from camp_match.modules.booking.application.use_cases.get_booking import GetBookingUseCase
 from camp_match.modules.booking.application.use_cases.list_bookings_for_property import (
@@ -49,6 +58,9 @@ def _build_booking_response(booking) -> schemas.BookingResponseSchema:
         "cancelled_at": booking.cancelled_at,
         "cancelled_by": booking.cancelled_by.value if booking.cancelled_by else None,
         "cancellation_reason": booking.cancellation_reason,
+        "handover_offered_at": booking.handover_offered_at,
+        "handover_offered_by": booking.handover_offered_by.value if booking.handover_offered_by else None,
+        "handover_accepted_at": booking.handover_accepted_at,
     })
 
 
@@ -153,6 +165,34 @@ async def confirm_booking(
 ) -> None:
     await use_case.execute(
         ConfirmBookingRequest(
+            booking_id=EntityId(booking_id),
+            caller_id=identity_id,
+        )
+    )
+
+
+@router.post("/{booking_id}/handover/offered", status_code=status.HTTP_204_NO_CONTENT)
+async def confirm_handover_offered(
+    booking_id: UUID,
+    identity_id: Annotated[EntityId, Depends(get_current_identity_id)],
+    use_case: Annotated[ConfirmHandoverOfferedUseCase, Depends(dependencies.get_confirm_handover_offered_use_case)],
+) -> None:
+    await use_case.execute(
+        ConfirmHandoverOfferedRequest(
+            booking_id=EntityId(booking_id),
+            caller_id=identity_id,
+        )
+    )
+
+
+@router.post("/{booking_id}/handover/accepted", status_code=status.HTTP_204_NO_CONTENT)
+async def confirm_handover_accepted(
+    booking_id: UUID,
+    identity_id: Annotated[EntityId, Depends(get_current_identity_id)],
+    use_case: Annotated[ConfirmHandoverAcceptedUseCase, Depends(dependencies.get_confirm_handover_accepted_use_case)],
+) -> None:
+    await use_case.execute(
+        ConfirmHandoverAcceptedRequest(
             booking_id=EntityId(booking_id),
             caller_id=identity_id,
         )

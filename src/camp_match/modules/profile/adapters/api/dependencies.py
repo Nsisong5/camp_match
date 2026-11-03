@@ -6,7 +6,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from camp_match.modules.identity.adapters.api.dependencies import get_get_identity
 from camp_match.modules.profile.adapters.identity.identity_provider import InProcessIdentityProvider
 from camp_match.modules.profile.adapters.persistence.repository import SqlAlchemyProfileRepository
-from camp_match.modules.profile.adapters.university.university_provider import InProcessUniversityProvider
+from camp_match.modules.profile.adapters.university.university_provider import (
+    InProcessUniversityProvider,
+)
 from camp_match.modules.profile.application.use_cases.create_profile import CreateProfileUseCase
 from camp_match.modules.profile.application.use_cases.get_current_user_profile import (
     GetCurrentUserProfileUseCase,

@@ -1,7 +1,10 @@
-from camp_match.modules.search.application.ports.outbound import ProfileProvider
-from camp_match.modules.profile.application.use_cases.get_current_user_profile import GetCurrentUserProfileUseCase
 from camp_match.modules.profile.application.ports.inbound import GetProfileRequest
+from camp_match.modules.profile.application.use_cases.get_current_user_profile import (
+    GetCurrentUserProfileUseCase,
+)
+from camp_match.modules.search.application.ports.outbound import ProfileProvider
 from camp_match.shared_kernel.domain.identifiers import EntityId
+
 
 class ProfileProviderAdapter(ProfileProvider):
     def __init__(self, get_profile_use_case: GetCurrentUserProfileUseCase):

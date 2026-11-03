@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+
 from camp_match.modules.media.application.ports.inbound import DeleteMediaRequest
 from camp_match.modules.media.application.ports.outbound import MediaRepository, StoragePort
 from camp_match.modules.media.domain.value_objects import MediaStatus

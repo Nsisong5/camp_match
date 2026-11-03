@@ -18,11 +18,11 @@ from camp_match.modules.profile.adapters.api.dependencies import (
     get_get_current_user_profile,
     get_get_public_profile,
     get_profile_repository,
+    get_university_provider,
+    get_uow,
     get_update_profile,
     get_update_scout_profile,
     get_update_student_profile,
-    get_university_provider,
-    get_uow,
 )
 from camp_match.modules.profile.application.ports.inbound import (
     CreateProfileRequest,

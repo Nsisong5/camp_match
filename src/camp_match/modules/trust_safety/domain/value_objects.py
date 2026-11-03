@@ -1,0 +1,104 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from enum import Enum
+
+
+class ReportCategory(Enum):
+    SCAM_OR_FRAUD = "SCAM_OR_FRAUD"
+    MISLEADING_LISTING = "MISLEADING_LISTING"
+    HARASSMENT = "HARASSMENT"
+    IMPERSONATION = "IMPERSONATION"
+    PAYMENT_CONCERN = "PAYMENT_CONCERN"
+    THREAT_OR_DANGER = "THREAT_OR_DANGER"
+    OTHER = "OTHER"
+
+
+class SubjectType(Enum):
+    LISTING = "LISTING"
+    BOOKING = "BOOKING"
+    CONVERSATION = "CONVERSATION"
+
+
+class ReportStatus(Enum):
+    RECEIVED = "RECEIVED"
+    LINKED = "LINKED"
+    CLOSED = "CLOSED"
+
+
+class CasePriority(Enum):
+    ORDINARY = "ORDINARY"
+    HIGH = "HIGH"
+    URGENT = "URGENT"
+
+
+class CaseStatus(Enum):
+    OPEN = "OPEN"
+    TRIAGED = "TRIAGED"
+    IN_REVIEW = "IN_REVIEW"
+    AWAITING_INFORMATION = "AWAITING_INFORMATION"
+    ESCALATED = "ESCALATED"
+    RESOLVED = "RESOLVED"
+    CLOSED = "CLOSED"
+
+
+class EvidenceType(Enum):
+    MESSAGE_SNAPSHOT = "MESSAGE_SNAPSHOT"
+    RESOURCE_REFERENCE = "RESOURCE_REFERENCE"
+
+
+class Confidentiality(Enum):
+    RESTRICTED = "RESTRICTED"
+    INTERNAL = "INTERNAL"
+
+
+class NoteKind(Enum):
+    OBSERVATION = "OBSERVATION"
+    WORKING_NOTE = "WORKING_NOTE"
+    CORROBORATED_FACT = "CORROBORATED_FACT"
+
+
+class DecisionType(Enum):
+    NO_VIOLATION_ESTABLISHED = "NO_VIOLATION_ESTABLISHED"
+    INSUFFICIENT_EVIDENCE = "INSUFFICIENT_EVIDENCE"
+    VIOLATION_ESTABLISHED = "VIOLATION_ESTABLISHED"
+    REFERRED = "REFERRED"
+    FURTHER_INVESTIGATION_REQUIRED = "FURTHER_INVESTIGATION_REQUIRED"
+
+
+class EnforcementType(Enum):
+    WARNING = "WARNING"
+    COMMUNICATION_RESTRICTION = "COMMUNICATION_RESTRICTION"
+    LISTING_SUSPENSION = "LISTING_SUSPENSION"
+    ACCOUNT_SUSPENSION = "ACCOUNT_SUSPENSION"
+
+
+class EnforcementStatus(Enum):
+    PROPOSED = "PROPOSED"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+    APPLIED = "APPLIED"
+    FAILED = "FAILED"
+    REVERSAL_PENDING = "REVERSAL_PENDING"
+    REVERSED = "REVERSED"
+    REVERSAL_FAILED = "REVERSAL_FAILED"
+    EXPIRED = "EXPIRED"
+
+
+class SafetyUpdateKind(Enum):
+    REPORT_RECEIVED = "REPORT_RECEIVED"
+    REPORT_REVIEWED = "REPORT_REVIEWED"
+    WARNING_ISSUED = "WARNING_ISSUED"
+    COMMUNICATION_RESTRICTED = "COMMUNICATION_RESTRICTED"
+    LISTING_SUSPENDED = "LISTING_SUSPENDED"
+    RESTRICTION_LIFTED = "RESTRICTION_LIFTED"
+
+
+@dataclass(frozen=True)
+class ReportDescription:
+    value: str
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "value", self.value.strip())
+        if not (10 <= len(self.value) <= 2000):
+            raise ValueError("Report description must be between 10 and 2000 characters.")

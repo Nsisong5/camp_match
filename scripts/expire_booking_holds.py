@@ -15,12 +15,15 @@ from camp_match.modules.housing.adapters.persistence.repository import (
 from camp_match.platform.clock import get_clock
 from camp_match.platform.db.session import create_engine, create_session_factory
 from camp_match.platform.db.unit_of_work import SqlAlchemyUnitOfWork
+from camp_match.platform.event_bus import build_event_bus
 
 
 async def expire_holds_main() -> None:
     settings = get_settings()
     engine = create_engine(settings)
     session_factory = create_session_factory(engine)
+    clock = get_clock()
+    event_bus = build_event_bus(session_factory, clock, settings)
 
     async with session_factory() as session:
         booking_repo = SqlAlchemyBookingRepository(session)
@@ -29,9 +32,8 @@ async def expire_holds_main() -> None:
         unit_repo = SqlAlchemyUnitRepository(session)
         housing_provider = InProcessHousingProvider(listing_repo, property_repo, unit_repo)
         uow = SqlAlchemyUnitOfWork(session)
-        clock = get_clock()
 
-        use_case = ExpireHoldsUseCase(booking_repo, housing_provider, uow, clock)
+        use_case = ExpireHoldsUseCase(booking_repo, housing_provider, uow, clock, event_bus)
         result = await use_case.execute()
         print(f"Expired holds processed successfully. Count: {result.expired_count}")
 

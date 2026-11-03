@@ -169,6 +169,109 @@ forbidden_modules = [
     "camp_match.modules.verification.adapters"
 ]
 
+[[tool.importlinter.contracts]]
+name = "Notification Domain must stay framework-free"
+type = "forbidden"
+source_modules = ["camp_match.modules.notification.domain"]
+forbidden_modules = ["fastapi", "sqlalchemy"]
+
+[[tool.importlinter.contracts]]
+name = "Notification Application must not import frameworks or other modules"
+type = "forbidden"
+source_modules = ["camp_match.modules.notification.application"]
+forbidden_modules = [
+    "fastapi",
+    "sqlalchemy",
+    "camp_match.modules.identity",
+    "camp_match.modules.profile",
+    "camp_match.modules.university_location",
+    "camp_match.modules.housing",
+    "camp_match.modules.search",
+    "camp_match.modules.media",
+    "camp_match.modules.verification",
+    "camp_match.modules.booking",
+    "camp_match.modules.payment",
+    "camp_match.modules.messaging"
+]
+
+[[tool.importlinter.contracts]]
+name = "Notification Adapters are private"
+type = "forbidden"
+source_modules = ["camp_match.modules"]
+excluded_modules = ["camp_match.modules.notification"]
+forbidden_modules = ["camp_match.modules.notification.adapters"]
+
+[[tool.importlinter.contracts]]
+name = "Other modules must not import Notification"
+type = "forbidden"
+source_modules = [
+    "camp_match.modules.identity",
+    "camp_match.modules.profile",
+    "camp_match.modules.university_location",
+    "camp_match.modules.housing",
+    "camp_match.modules.search",
+    "camp_match.modules.media",
+    "camp_match.modules.verification",
+    "camp_match.modules.booking",
+    "camp_match.modules.payment",
+    "camp_match.modules.security"
+]
+forbidden_modules = ["camp_match.modules.notification"]
+
+[[tool.importlinter.contracts]]
+name = "Admin & Operations Domain must stay framework-free"
+type = "forbidden"
+source_modules = ["camp_match.modules.admin_operations.domain"]
+forbidden_modules = ["fastapi", "sqlalchemy"]
+
+[[tool.importlinter.contracts]]
+name = "Admin & Operations Application must not import frameworks or other modules"
+type = "forbidden"
+source_modules = ["camp_match.modules.admin_operations.application"]
+forbidden_modules = [
+    "fastapi",
+    "sqlalchemy",
+    "camp_match.modules.identity",
+    "camp_match.modules.profile",
+    "camp_match.modules.university_location",
+    "camp_match.modules.housing",
+    "camp_match.modules.search",
+    "camp_match.modules.media",
+    "camp_match.modules.verification",
+    "camp_match.modules.booking",
+    "camp_match.modules.payment",
+    "camp_match.modules.messaging",
+    "camp_match.modules.notification",
+    "camp_match.modules.trust_safety"
+]
+
+[[tool.importlinter.contracts]]
+name = "Admin & Operations Adapters are private"
+type = "forbidden"
+source_modules = ["camp_match.modules"]
+excluded_modules = ["camp_match.modules.admin_operations"]
+forbidden_modules = ["camp_match.modules.admin_operations.adapters"]
+
+[[tool.importlinter.contracts]]
+name = "Other modules must not import Admin & Operations"
+type = "forbidden"
+source_modules = [
+    "camp_match.modules.identity",
+    "camp_match.modules.profile",
+    "camp_match.modules.university_location",
+    "camp_match.modules.housing",
+    "camp_match.modules.search",
+    "camp_match.modules.media",
+    "camp_match.modules.verification",
+    "camp_match.modules.booking",
+    "camp_match.modules.payment",
+    "camp_match.modules.security",
+    "camp_match.modules.messaging",
+    "camp_match.modules.notification",
+    "camp_match.modules.trust_safety"
+]
+forbidden_modules = ["camp_match.modules.admin_operations"]
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"

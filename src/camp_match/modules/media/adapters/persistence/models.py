@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from sqlalchemy import BigInteger, CheckConstraint, Column, DateTime, String, func
 from sqlalchemy.dialects.postgresql import UUID
+
 from camp_match.platform.db.base import Base
 
 

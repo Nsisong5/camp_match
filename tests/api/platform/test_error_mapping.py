@@ -6,6 +6,7 @@ from camp_match.shared_kernel.application.errors import (
     ConflictError,
     ForbiddenError,
     NotFoundError,
+    RateLimitedError,
     UnauthorizedError,
     ValidationError,
 )
@@ -35,6 +36,10 @@ def app():
     @app.get("/test-conflict")
     async def raise_conflict():
         raise ConflictError("conflict")
+
+    @app.get("/test-rate-limit")
+    async def raise_rate_limit():
+        raise RateLimitedError("too many requests", retry_after_seconds=45)
 
     @app.get("/test-500")
     async def raise_500():
@@ -76,3 +81,10 @@ async def test_error_mapping(app):
         assert response.status_code == 409
         assert response.json()["error"]["code"] == "conflict_error"
         assert response.json()["error"]["message"] == "conflict"
+
+        # RateLimitedError
+        response = await ac.get("/test-rate-limit")
+        assert response.status_code == 429
+        assert response.json()["error"]["code"] == "rate_limited_error"
+        assert response.json()["error"]["message"] == "too many requests"
+        assert response.headers.get("Retry-After") == "45"

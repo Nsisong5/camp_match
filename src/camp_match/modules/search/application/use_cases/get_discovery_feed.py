@@ -1,7 +1,8 @@
 from camp_match.modules.search.application.strategies.discovery_strategy import DiscoveryStrategy
 from camp_match.modules.search.domain.value_objects import ScoredCandidate
-from camp_match.shared_kernel.domain.identifiers import EntityId
 from camp_match.shared_kernel.application.pagination import Page, PageRequest
+from camp_match.shared_kernel.domain.identifiers import EntityId
+
 
 class GetDiscoveryFeed:
     def __init__(self, strategies: dict[str, DiscoveryStrategy]):

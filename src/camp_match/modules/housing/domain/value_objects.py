@@ -34,6 +34,7 @@ class ListingStatus(Enum):
     PUBLISHED = "PUBLISHED"
     UNAVAILABLE = "UNAVAILABLE"
     ARCHIVED = "ARCHIVED"
+    SUSPENDED = "SUSPENDED"
 
 
 class Currency(Enum):

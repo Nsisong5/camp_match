@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from camp_match.modules.media.application.errors import MediaNotAvailable, MediaNotFound
 from camp_match.modules.media.application.ports.inbound import GetAuthorizedAccessRequest
-from camp_match.modules.media.application.ports.outbound import AccessGrant, MediaRepository, StoragePort
+from camp_match.modules.media.application.ports.outbound import (
+    AccessGrant,
+    MediaRepository,
+    StoragePort,
+)
 from camp_match.modules.media.domain.value_objects import MediaStatus
 
 

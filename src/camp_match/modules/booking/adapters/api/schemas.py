@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Generic, List, TypeVar
+from typing import Generic, TypeVar
 from uuid import UUID
+
 from pydantic import BaseModel
 
 
@@ -37,12 +38,15 @@ class BookingResponseSchema(BaseModel):
     cancelled_at: datetime | None = None
     cancelled_by: UUID | None = None
     cancellation_reason: str | None = None
+    handover_offered_at: datetime | None = None
+    handover_offered_by: UUID | None = None
+    handover_accepted_at: datetime | None = None
 
 
 T = TypeVar("T")
 
 class PageSchema(BaseModel, Generic[T]):
-    items: List[T]
+    items: list[T]
     total: int
     page: int
     page_size: int

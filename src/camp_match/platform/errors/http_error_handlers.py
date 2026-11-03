@@ -7,6 +7,7 @@ from camp_match.shared_kernel.application.errors import (
     ConflictError,
     ForbiddenError,
     NotFoundError,
+    RateLimitedError,
     UnauthorizedError,
     ValidationError,
 )
@@ -77,6 +78,28 @@ def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(ConflictError)
     async def handle_conflict_error(request: Request, exc: ConflictError) -> JSONResponse:
         return await handle_application_error(request, exc, 409)
+
+    @app.exception_handler(RateLimitedError)
+    async def handle_rate_limited_error(request: Request, exc: RateLimitedError) -> JSONResponse:
+        code = exc.code or _to_snake_case(type(exc).__name__)
+        logger.warning(
+            "rate_limited_error",
+            code=code,
+            path=str(request.url),
+        )
+        headers = {}
+        if exc.retry_after_seconds is not None:
+            headers["Retry-After"] = str(exc.retry_after_seconds)
+        return JSONResponse(
+            status_code=429,
+            content={
+                "error": {
+                    "code": code,
+                    "message": exc.message,
+                }
+            },
+            headers=headers,
+        )
 
 def _to_snake_case(name: str) -> str:
     import re

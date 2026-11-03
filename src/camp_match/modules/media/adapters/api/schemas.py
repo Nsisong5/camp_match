@@ -1,5 +1,6 @@
 from pydantic import BaseModel
-from camp_match.modules.media.domain.value_objects import MediaStatus, AccessPolicy
+
+from camp_match.modules.media.domain.value_objects import AccessPolicy, MediaStatus
 
 
 class MediaMetadataResponseSchema(BaseModel):

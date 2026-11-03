@@ -1,6 +1,8 @@
+"""Create booking use case."""
 from __future__ import annotations
 
 from datetime import timedelta
+
 import structlog
 
 from camp_match.config.settings import Settings
@@ -19,6 +21,7 @@ from camp_match.modules.booking.application.ports.outbound import (
     VerificationProvider,
 )
 from camp_match.modules.booking.domain.entities import Booking
+from camp_match.modules.booking.domain.events import BookingCreated
 from camp_match.modules.booking.domain.value_objects import (
     BillingPeriod,
     BookingStatus,
@@ -26,6 +29,11 @@ from camp_match.modules.booking.domain.value_objects import (
     PriceSnapshot,
 )
 from camp_match.modules.verification.domain.value_objects import VerificationTargetType
+from camp_match.shared_kernel.application.event_bus import (
+    EventBus,
+    NoOpEventBus,
+    publish_best_effort,
+)
 from camp_match.shared_kernel.application.unit_of_work import UnitOfWork
 from camp_match.shared_kernel.domain.clock import Clock
 from camp_match.shared_kernel.domain.identifiers import EntityId
@@ -42,6 +50,7 @@ class CreateBookingUseCase:
         uow: UnitOfWork,
         clock: Clock,
         settings: Settings,
+        event_bus: EventBus | None = None,
     ) -> None:
         self.booking_repo = booking_repo
         self.housing_provider = housing_provider
@@ -49,6 +58,7 @@ class CreateBookingUseCase:
         self.uow = uow
         self.clock = clock
         self.settings = settings
+        self.event_bus = event_bus or NoOpEventBus()
 
     async def execute(self, request: CreateBookingRequest) -> Booking:
         # 1. Idempotency check first
@@ -110,6 +120,16 @@ class CreateBookingUseCase:
             async with self.uow:
                 saved = await self.booking_repo.add(booking)
                 await self.uow.commit()
+
+            event = BookingCreated(
+                event_id=EntityId.new(),
+                occurred_at=now,
+                booking_id=saved.id,
+                student_id=saved.student_id,
+                property_id=saved.property_id,
+                listing_id=saved.listing_id,
+            )
+            await publish_best_effort(self.event_bus, event, logger)
         except Exception as e:
             logger.error(
                 "booking_persistence_failed_compensating_reservation",

@@ -1,14 +1,24 @@
+"""Expire holds use case."""
 from __future__ import annotations
 
 import structlog
 
-from camp_match.modules.booking.application.ports.inbound import ExpireHoldsResponse
+from camp_match.modules.booking.application.ports.inbound import (
+    ExpireHoldsResponse,
+)
 from camp_match.modules.booking.application.ports.outbound import (
     BookingRepository,
     HousingProvider,
 )
+from camp_match.modules.booking.domain.events import BookingExpired
+from camp_match.shared_kernel.application.event_bus import (
+    EventBus,
+    NoOpEventBus,
+    publish_best_effort,
+)
 from camp_match.shared_kernel.application.unit_of_work import UnitOfWork
 from camp_match.shared_kernel.domain.clock import Clock
+from camp_match.shared_kernel.domain.identifiers import EntityId
 
 logger = structlog.get_logger()
 
@@ -20,11 +30,13 @@ class ExpireHoldsUseCase:
         housing_provider: HousingProvider,
         uow: UnitOfWork,
         clock: Clock,
+        event_bus: EventBus | None = None,
     ) -> None:
         self.booking_repo = booking_repo
         self.housing_provider = housing_provider
         self.uow = uow
         self.clock = clock
+        self.event_bus = event_bus or NoOpEventBus()
 
     async def execute(self) -> ExpireHoldsResponse:
         now = self.clock.now()
@@ -48,6 +60,15 @@ class ExpireHoldsUseCase:
                 if updated:
                     await self.uow.commit()
                     expired_count += 1
+                    event = BookingExpired(
+                        event_id=EntityId.new(),
+                        occurred_at=now,
+                        booking_id=booking.id,
+                        student_id=booking.student_id,
+                        property_id=booking.property_id,
+                        listing_id=booking.listing_id,
+                    )
+                    await publish_best_effort(self.event_bus, event, logger)
                     logger.info("booking_hold_expired", booking_id=booking.id)
 
         return ExpireHoldsResponse(expired_count=expired_count)

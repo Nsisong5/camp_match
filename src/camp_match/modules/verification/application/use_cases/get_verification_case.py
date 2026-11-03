@@ -5,11 +5,11 @@ from camp_match.modules.verification.application.errors import (
     VerificationForbiddenError,
 )
 from camp_match.modules.verification.application.ports.inbound import (
+    EvidenceOwnerDTO,
+    EvidenceReviewerDTO,
     GetVerificationCaseRequest,
     VerificationCaseOwnerDTO,
     VerificationCaseReviewerDTO,
-    EvidenceOwnerDTO,
-    EvidenceReviewerDTO,
 )
 from camp_match.modules.verification.application.ports.outbound import (
     EvidenceRepository,

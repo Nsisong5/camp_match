@@ -1,9 +1,15 @@
 import math
 from typing import Protocol
+
 from camp_match.modules.search.domain.value_objects import (
-    CandidateListing, SearchCriteria, ScoredCandidate, Coordinates, VerificationState
+    CandidateListing,
+    Coordinates,
+    ScoredCandidate,
+    SearchCriteria,
+    VerificationState,
 )
 from camp_match.shared_kernel.domain.identifiers import EntityId
+
 
 def haversine_distance(coord1: Coordinates, coord2: Coordinates) -> float:
     R = 6371.0  # Earth's radius in km

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, date
+from datetime import date, datetime
 from typing import Protocol
 
 from camp_match.modules.booking.domain.entities import Booking
@@ -100,4 +100,14 @@ class BookingRepository(Protocol):
         ...
 
     async def expire(self, booking_id: EntityId) -> bool:
+        ...
+
+    async def confirm_handover_offered(
+        self, booking_id: EntityId, offered_at: datetime, offered_by: EntityId
+    ) -> bool:
+        ...
+
+    async def confirm_handover_accepted(
+        self, booking_id: EntityId, accepted_at: datetime
+    ) -> bool:
         ...

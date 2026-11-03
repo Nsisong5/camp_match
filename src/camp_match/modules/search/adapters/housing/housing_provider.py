@@ -1,20 +1,20 @@
 from __future__ import annotations
 
-from camp_match.modules.search.application.ports.outbound import HousingProvider
 from camp_match.modules.housing.application.ports.outbound import (
     ListingRepository,
     PropertyRepository,
     UnitRepository,
 )
+from camp_match.modules.search.application.ports.outbound import HousingProvider
 from camp_match.modules.search.domain.value_objects import (
+    AccommodationType,
+    Amenity,
+    BillingPeriod,
     CandidateListing,
     Coordinates,
-    AccommodationType,
-    BillingPeriod,
-    Amenity,
 )
-from camp_match.shared_kernel.domain.identifiers import EntityId
 from camp_match.shared_kernel.application.pagination import PageRequest
+from camp_match.shared_kernel.domain.identifiers import EntityId
 
 
 class HousingProviderAdapter(HousingProvider):

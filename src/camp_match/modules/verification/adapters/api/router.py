@@ -1,68 +1,108 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Annotated, Any
-from datetime import datetime, date
 from uuid import UUID
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
 
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+
+from camp_match.modules.security.domain.value_objects import Permission
 from camp_match.modules.verification.adapters.api import dependencies, schemas
-from camp_match.modules.verification.application.ports.inbound import (
-    CreateVerificationCaseRequest,
-    SubmitVerificationCaseRequest,
-    AddEvidenceRequest,
-    ReviewEvidenceRequest,
-    GetEvidenceAccessRequest,
-    AssignInspectorRequest,
-    StartInspectionRequest,
-    RecordInspectionObservationRequest,
-    CompleteInspectionRequest,
-    StartReviewRequest,
-    RequestInspectionRequest,
-    MarkReadyForDecisionRequest,
-    ApproveVerificationRequest,
-    RejectVerificationRequest,
-    RevokeVerificationRequest,
-    GetVerificationCaseRequest,
-    GetVerificationStatusRequest,
-    ListMyVerificationCasesRequest,
-    ListMyInspectionsRequest,
-    ListPendingReviewsRequest,
-)
-from camp_match.modules.verification.application.use_cases.create_verification_case import CreateVerificationCaseUseCase
-from camp_match.modules.verification.application.use_cases.submit_verification_case import SubmitVerificationCaseUseCase
-from camp_match.modules.verification.application.use_cases.add_evidence import AddEvidenceUseCase
-from camp_match.modules.verification.application.use_cases.review_evidence import ReviewEvidenceUseCase
-from camp_match.modules.verification.application.use_cases.get_evidence_access import GetEvidenceAccessUseCase
-from camp_match.modules.verification.application.use_cases.assign_inspector import AssignInspectorUseCase
-from camp_match.modules.verification.application.use_cases.start_inspection import StartInspectionUseCase
-from camp_match.modules.verification.application.use_cases.record_inspection_observation import RecordInspectionObservationUseCase
-from camp_match.modules.verification.application.use_cases.complete_inspection import CompleteInspectionUseCase
-from camp_match.modules.verification.application.use_cases.start_review import StartReviewUseCase
-from camp_match.modules.verification.application.use_cases.request_inspection import RequestInspectionUseCase
-from camp_match.modules.verification.application.use_cases.mark_ready_for_decision import MarkReadyForDecisionUseCase
-from camp_match.modules.verification.application.use_cases.approve_verification import ApproveVerificationUseCase
-from camp_match.modules.verification.application.use_cases.reject_verification import RejectVerificationUseCase
-from camp_match.modules.verification.application.use_cases.revoke_verification import RevokeVerificationUseCase
-from camp_match.modules.verification.application.use_cases.get_verification_case import GetVerificationCaseUseCase
-from camp_match.modules.verification.application.use_cases.get_verification_status import GetVerificationStatusUseCase
-from camp_match.modules.verification.application.use_cases.list_my_verification_cases import ListMyVerificationCasesUseCase
-from camp_match.modules.verification.application.use_cases.list_my_inspections import ListMyInspectionsUseCase
-from camp_match.modules.verification.application.use_cases.list_pending_reviews import ListPendingReviewsUseCase
-
 from camp_match.modules.verification.application.errors import (
-    VerificationCaseNotFound,
+    DecisionNotAllowed,
     EvidenceNotFound,
+    EvidenceRequirementNotSatisfied,
     InspectionNotFound,
     InvalidVerificationTransition,
-    EvidenceRequirementNotSatisfied,
-    DecisionNotAllowed,
+    VerificationCaseNotFound,
     VerificationForbiddenError,
 )
-from camp_match.modules.verification.domain.value_objects import VerificationTargetType, EvidenceType, ChecklistItem
-from camp_match.modules.security.domain.value_objects import Permission
+from camp_match.modules.verification.application.ports.inbound import (
+    AddEvidenceRequest,
+    ApproveVerificationRequest,
+    AssignInspectorRequest,
+    CompleteInspectionRequest,
+    CreateVerificationCaseRequest,
+    GetEvidenceAccessRequest,
+    GetVerificationCaseRequest,
+    GetVerificationStatusRequest,
+    ListMyInspectionsRequest,
+    ListMyVerificationCasesRequest,
+    ListPendingReviewsRequest,
+    MarkReadyForDecisionRequest,
+    RecordInspectionObservationRequest,
+    RejectVerificationRequest,
+    RequestInspectionRequest,
+    ReviewEvidenceRequest,
+    RevokeVerificationRequest,
+    StartInspectionRequest,
+    StartReviewRequest,
+    SubmitVerificationCaseRequest,
+)
 from camp_match.modules.verification.application.ports.outbound import AuthorizationService
-from camp_match.shared_kernel.application.unit_of_work import UnitOfWork
+from camp_match.modules.verification.application.use_cases.add_evidence import AddEvidenceUseCase
+from camp_match.modules.verification.application.use_cases.approve_verification import (
+    ApproveVerificationUseCase,
+)
+from camp_match.modules.verification.application.use_cases.assign_inspector import (
+    AssignInspectorUseCase,
+)
+from camp_match.modules.verification.application.use_cases.complete_inspection import (
+    CompleteInspectionUseCase,
+)
+from camp_match.modules.verification.application.use_cases.create_verification_case import (
+    CreateVerificationCaseUseCase,
+)
+from camp_match.modules.verification.application.use_cases.get_evidence_access import (
+    GetEvidenceAccessUseCase,
+)
+from camp_match.modules.verification.application.use_cases.get_verification_case import (
+    GetVerificationCaseUseCase,
+)
+from camp_match.modules.verification.application.use_cases.get_verification_status import (
+    GetVerificationStatusUseCase,
+)
+from camp_match.modules.verification.application.use_cases.list_my_inspections import (
+    ListMyInspectionsUseCase,
+)
+from camp_match.modules.verification.application.use_cases.list_my_verification_cases import (
+    ListMyVerificationCasesUseCase,
+)
+from camp_match.modules.verification.application.use_cases.list_pending_reviews import (
+    ListPendingReviewsUseCase,
+)
+from camp_match.modules.verification.application.use_cases.mark_ready_for_decision import (
+    MarkReadyForDecisionUseCase,
+)
+from camp_match.modules.verification.application.use_cases.record_inspection_observation import (
+    RecordInspectionObservationUseCase,
+)
+from camp_match.modules.verification.application.use_cases.reject_verification import (
+    RejectVerificationUseCase,
+)
+from camp_match.modules.verification.application.use_cases.request_inspection import (
+    RequestInspectionUseCase,
+)
+from camp_match.modules.verification.application.use_cases.review_evidence import (
+    ReviewEvidenceUseCase,
+)
+from camp_match.modules.verification.application.use_cases.revoke_verification import (
+    RevokeVerificationUseCase,
+)
+from camp_match.modules.verification.application.use_cases.start_inspection import (
+    StartInspectionUseCase,
+)
+from camp_match.modules.verification.application.use_cases.start_review import StartReviewUseCase
+from camp_match.modules.verification.application.use_cases.submit_verification_case import (
+    SubmitVerificationCaseUseCase,
+)
+from camp_match.modules.verification.domain.value_objects import (
+    EvidenceType,
+    VerificationTargetType,
+)
+from camp_match.platform.event_bus import get_event_bus
 from camp_match.platform.security.authentication import get_current_identity_id
+from camp_match.shared_kernel.application.unit_of_work import UnitOfWork
 from camp_match.shared_kernel.domain.identifiers import EntityId
 
 router = APIRouter(prefix="/api/v1/verification", tags=["verification"])
@@ -298,7 +338,9 @@ async def approve_verification(
     auth_service: AuthorizationService = Depends(dependencies.get_auth_service),
 ) -> dict:
     await auth_service.authorize(identity_id, Permission.VERIFICATION_REVIEW)
-    use_case = ApproveVerificationUseCase(case_repo, evidence_repo, inspection_repo, decision_repo, history_repo, uow)
+    use_case = ApproveVerificationUseCase(
+        case_repo, evidence_repo, inspection_repo, decision_repo, history_repo, uow, event_bus=get_event_bus()
+    )
     try:
         cid = EntityId.from_string(case_id)
         resp = await use_case.execute(
@@ -327,7 +369,9 @@ async def reject_verification(
     auth_service: AuthorizationService = Depends(dependencies.get_auth_service),
 ) -> dict:
     await auth_service.authorize(identity_id, Permission.VERIFICATION_REVIEW)
-    use_case = RejectVerificationUseCase(case_repo, decision_repo, history_repo, uow)
+    use_case = RejectVerificationUseCase(
+        case_repo, decision_repo, history_repo, uow, event_bus=get_event_bus()
+    )
     try:
         cid = EntityId.from_string(case_id)
         await use_case.execute(
@@ -353,7 +397,9 @@ async def revoke_verification(
     auth_service: AuthorizationService = Depends(dependencies.get_auth_service),
 ) -> dict:
     await auth_service.authorize(identity_id, Permission.VERIFICATION_REVIEW)
-    use_case = RevokeVerificationUseCase(case_repo, history_repo, uow)
+    use_case = RevokeVerificationUseCase(
+        case_repo, history_repo, uow, event_bus=get_event_bus()
+    )
     try:
         cid = EntityId.from_string(case_id)
         await use_case.execute(

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from camp_match.modules.media.domain.value_objects import MediaCategory, MediaPurpose, AccessPolicy
+
+from camp_match.modules.media.domain.value_objects import AccessPolicy, MediaCategory, MediaPurpose
 
 
 @dataclass(frozen=True, slots=True)
@@ -13,14 +14,7 @@ class MediaPurposeRules:
 
 
 def rules_for(purpose: MediaPurpose) -> MediaPurposeRules:
-    if purpose == MediaPurpose.PROFILE_AVATAR:
-        return MediaPurposeRules(
-            category=MediaCategory.IMAGE,
-            access_policy=AccessPolicy.PUBLIC,
-            allowed_content_types=frozenset({"image/jpeg", "image/png", "image/webp"}),
-            max_size_bytes=5 * 1024 * 1024,
-        )
-    elif purpose == MediaPurpose.LISTING_PHOTO:
+    if purpose == MediaPurpose.PROFILE_AVATAR or purpose == MediaPurpose.LISTING_PHOTO:
         return MediaPurposeRules(
             category=MediaCategory.IMAGE,
             access_policy=AccessPolicy.PUBLIC,

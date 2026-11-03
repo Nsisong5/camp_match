@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+
 from camp_match.modules.media.application.errors import (
     MediaTooLarge,
     MediaUploadFailed,
@@ -17,8 +18,8 @@ from camp_match.modules.media.application.ports.outbound import (
 from camp_match.modules.media.domain.entities import MediaFile
 from camp_match.modules.media.domain.policy import rules_for
 from camp_match.modules.media.domain.value_objects import MediaStatus
-from camp_match.shared_kernel.domain.identifiers import EntityId
 from camp_match.shared_kernel.application.unit_of_work import UnitOfWork
+from camp_match.shared_kernel.domain.identifiers import EntityId
 
 logger = logging.getLogger(__name__)
 

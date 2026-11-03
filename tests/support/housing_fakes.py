@@ -1,14 +1,9 @@
 """Fakes for housing module testing."""
 
-from camp_match.modules.housing.application.ports.outbound import (
-    AuthorizationService,
-    ProfileProvider,
-    PropertyRepository,
-    UniversityLocationProvider,
-)
 from camp_match.modules.housing.domain.entities import Property
-from camp_match.shared_kernel.domain.identifiers import EntityId
 from camp_match.modules.security.domain.value_objects import Permission
+from camp_match.shared_kernel.domain.identifiers import EntityId
+
 
 class FakePropertyRepository:
     def __init__(self):

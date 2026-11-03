@@ -1,19 +1,19 @@
-from camp_match.modules.search.domain.value_objects import (
-    SearchCriteria,
-    ScoredCandidate,
-    SortOption,
-    Coordinates,
-)
+from datetime import datetime
+
 from camp_match.modules.search.application.ports.outbound import (
     HousingProvider,
     UniversityLocationProvider,
     VerificationProvider,
 )
-from camp_match.modules.search.domain.ranking import SearchRankingStrategy, haversine_distance
 from camp_match.modules.search.application.use_cases.apply_filters import apply_filters
+from camp_match.modules.search.domain.ranking import SearchRankingStrategy
+from camp_match.modules.search.domain.value_objects import (
+    Coordinates,
+    ScoredCandidate,
+    SearchCriteria,
+    SortOption,
+)
 from camp_match.shared_kernel.application.pagination import Page, PageRequest
-from camp_match.shared_kernel.domain.identifiers import EntityId
-from datetime import datetime
 
 
 class SearchListings:

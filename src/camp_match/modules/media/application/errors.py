@@ -1,7 +1,7 @@
 from camp_match.shared_kernel.application.errors import (
+    ApplicationError,
     NotFoundError,
     ValidationError,
-    ApplicationError,
 )
 
 

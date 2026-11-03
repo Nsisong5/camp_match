@@ -1,32 +1,33 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from sqlalchemy import select, update, desc
+
+from sqlalchemy import desc, select, update
 
 from camp_match.modules.verification.adapters.persistence.models import (
-    VerificationCaseModel,
-    VerificationEvidenceModel,
     InspectionModel,
     InspectionObservationModel,
+    VerificationCaseModel,
     VerificationDecisionModel,
+    VerificationEvidenceModel,
     VerificationHistoryModel,
 )
 from camp_match.modules.verification.domain.entities import (
-    VerificationCase,
     Evidence,
     Inspection,
     InspectionObservation,
+    VerificationCase,
     VerificationDecision,
 )
 from camp_match.modules.verification.domain.value_objects import (
-    VerificationStatus,
-    VerificationTargetType,
-    EvidenceType,
-    EvidenceReviewStatus,
-    InspectionStatus,
-    InspectionResult,
     ChecklistItem,
     DecisionOutcome,
+    EvidenceReviewStatus,
+    EvidenceType,
+    InspectionResult,
+    InspectionStatus,
+    VerificationStatus,
+    VerificationTargetType,
 )
 from camp_match.shared_kernel.domain.identifiers import EntityId
 

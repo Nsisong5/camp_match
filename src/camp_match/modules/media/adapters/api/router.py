@@ -2,14 +2,18 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException, Response
+
 from camp_match.config.settings import Settings, get_settings
 from camp_match.modules.media.adapters.api import dependencies, schemas
 from camp_match.modules.media.adapters.persistence.repository import SqlAlchemyMediaRepository
 from camp_match.modules.media.adapters.storage.access_token import verify_token
 from camp_match.modules.media.application.errors import MediaNotFound
 from camp_match.modules.media.application.ports.inbound import GetMediaMetadataRequest
-from camp_match.modules.media.application.use_cases.get_media_metadata import GetMediaMetadataUseCase
+from camp_match.modules.media.application.use_cases.get_media_metadata import (
+    GetMediaMetadataUseCase,
+)
 from camp_match.modules.media.domain.value_objects import AccessPolicy, MediaStatus
 from camp_match.platform.security.authentication import get_current_identity_id
 from camp_match.shared_kernel.domain.identifiers import EntityId

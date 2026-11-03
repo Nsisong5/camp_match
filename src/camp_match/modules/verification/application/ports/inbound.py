@@ -1,18 +1,18 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, date
-from typing import Protocol, Any
+from datetime import date, datetime
+from typing import Any, Protocol
 
+from camp_match.modules.verification.application.ports.outbound import AccessGrant
 from camp_match.modules.verification.domain.value_objects import (
     ChecklistItem,
     EvidenceReviewStatus,
     EvidenceType,
     InspectionResult,
-    VerificationTargetType,
     VerificationStatus,
+    VerificationTargetType,
 )
-from camp_match.modules.verification.application.ports.outbound import AccessGrant
 from camp_match.shared_kernel.domain.identifiers import EntityId
 
 

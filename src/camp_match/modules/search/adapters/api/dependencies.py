@@ -2,18 +2,26 @@ from __future__ import annotations
 
 import importlib
 from typing import Annotated
+
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from camp_match.platform.db.session import get_db_session
+
 from camp_match.modules.search.adapters.housing.housing_provider import HousingProviderAdapter
-from camp_match.modules.search.adapters.university_location.university_location_provider import UniversityLocationProviderAdapter
-from camp_match.modules.search.adapters.verification.verification_provider import InProcessVerificationProvider
 from camp_match.modules.search.adapters.profile.profile_provider import ProfileProviderAdapter
-from camp_match.modules.search.domain.ranking import SearchRankingStrategy
-from camp_match.modules.search.application.use_cases.search_listings import SearchListings
-from camp_match.modules.search.application.use_cases.get_discovery_feed import GetDiscoveryFeed
+from camp_match.modules.search.adapters.university_location.university_location_provider import (
+    UniversityLocationProviderAdapter,
+)
+from camp_match.modules.search.adapters.verification.verification_provider import (
+    InProcessVerificationProvider,
+)
 from camp_match.modules.search.application.strategies.recently_added import RecentlyAddedStrategy
-from camp_match.modules.search.application.strategies.recommended_for_you import RecommendedForYouStrategy
+from camp_match.modules.search.application.strategies.recommended_for_you import (
+    RecommendedForYouStrategy,
+)
+from camp_match.modules.search.application.use_cases.get_discovery_feed import GetDiscoveryFeed
+from camp_match.modules.search.application.use_cases.search_listings import SearchListings
+from camp_match.modules.search.domain.ranking import SearchRankingStrategy
+from camp_match.platform.db.session import get_db_session
 
 
 def get_housing_provider(session: Annotated[AsyncSession, Depends(get_db_session)]) -> HousingProviderAdapter:

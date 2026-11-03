@@ -1,37 +1,51 @@
 from __future__ import annotations
 
 from typing import Annotated
+
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from camp_match.config.settings import get_settings
+from camp_match.modules.media.adapters.persistence.repository import SqlAlchemyMediaRepository
+from camp_match.modules.media.adapters.storage.local_storage_adapter import (
+    LocalFileSystemStorageAdapter,
+)
+from camp_match.modules.media.application.use_cases.get_authorized_access import (
+    GetAuthorizedAccessUseCase,
+)
+from camp_match.modules.media.application.use_cases.upload_media import UploadMediaUseCase
+from camp_match.modules.profile.adapters.persistence.repository import SqlAlchemyProfileRepository
+from camp_match.modules.profile.application.use_cases.get_current_user_profile import (
+    GetCurrentUserProfileUseCase,
+)
+from camp_match.modules.security.adapters.persistence.repository import SqlAlchemyRoleRepository
+from camp_match.modules.security.adapters.profile.profile_provider import (
+    InProcessProfileProvider as SecurityProfileProvider,
+)
+from camp_match.modules.security.application.use_cases.authorize_action import (
+    AuthorizeActionUseCase,
+)
+from camp_match.modules.verification.adapters.housing.housing_provider import (
+    InProcessHousingProvider,
+)
+from camp_match.modules.verification.adapters.media.media_provider import InProcessMediaProvider
+from camp_match.modules.verification.adapters.persistence.repository import (
+    SQLAlchemyEvidenceRepository,
+    SQLAlchemyHistoryRepository,
+    SQLAlchemyInspectionObservationRepository,
+    SQLAlchemyInspectionRepository,
+    SQLAlchemyVerificationCaseRepository,
+    SQLAlchemyVerificationDecisionRepository,
+)
+from camp_match.modules.verification.adapters.profile.profile_provider import (
+    InProcessProfileProvider,
+)
+from camp_match.modules.verification.adapters.security.authorization import (
+    InProcessAuthorizationService,
+)
 from camp_match.platform.db.session import get_db_session
 from camp_match.platform.db.unit_of_work import SqlAlchemyUnitOfWork
 from camp_match.shared_kernel.application.unit_of_work import UnitOfWork
-
-from camp_match.modules.verification.adapters.persistence.repository import (
-    SQLAlchemyVerificationCaseRepository,
-    SQLAlchemyEvidenceRepository,
-    SQLAlchemyInspectionRepository,
-    SQLAlchemyInspectionObservationRepository,
-    SQLAlchemyVerificationDecisionRepository,
-    SQLAlchemyHistoryRepository,
-)
-from camp_match.modules.verification.adapters.housing.housing_provider import InProcessHousingProvider
-from camp_match.modules.verification.adapters.profile.profile_provider import InProcessProfileProvider
-from camp_match.modules.verification.adapters.media.media_provider import InProcessMediaProvider
-
-from camp_match.modules.media.adapters.persistence.repository import SqlAlchemyMediaRepository
-from camp_match.modules.media.adapters.storage.local_storage_adapter import LocalFileSystemStorageAdapter
-from camp_match.modules.media.application.use_cases.upload_media import UploadMediaUseCase
-from camp_match.modules.media.application.use_cases.get_authorized_access import GetAuthorizedAccessUseCase
-
-from camp_match.modules.security.adapters.persistence.repository import SqlAlchemyRoleRepository
-from camp_match.modules.security.application.use_cases.authorize_action import AuthorizeActionUseCase
-from camp_match.modules.security.adapters.profile.profile_provider import InProcessProfileProvider as SecurityProfileProvider
-from camp_match.modules.profile.adapters.persistence.repository import SqlAlchemyProfileRepository
-from camp_match.modules.profile.application.use_cases.get_current_user_profile import GetCurrentUserProfileUseCase
-from camp_match.modules.verification.adapters.security.authorization import InProcessAuthorizationService
 
 
 def get_uow(session: Annotated[AsyncSession, Depends(get_db_session)]) -> UnitOfWork:

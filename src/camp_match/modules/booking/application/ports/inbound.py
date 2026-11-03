@@ -85,3 +85,25 @@ class ListBookingsForPropertyRequest:
 class ListBookingsForProperty(Protocol):
     async def execute(self, request: ListBookingsForPropertyRequest) -> Page[Booking]:
         ...
+
+
+@dataclass(frozen=True, slots=True)
+class ConfirmHandoverOfferedRequest:
+    booking_id: EntityId
+    caller_id: EntityId
+
+
+class ConfirmHandoverOffered(Protocol):
+    async def execute(self, request: ConfirmHandoverOfferedRequest) -> None:
+        ...
+
+
+@dataclass(frozen=True, slots=True)
+class ConfirmHandoverAcceptedRequest:
+    booking_id: EntityId
+    caller_id: EntityId
+
+
+class ConfirmHandoverAccepted(Protocol):
+    async def execute(self, request: ConfirmHandoverAcceptedRequest) -> None:
+        ...

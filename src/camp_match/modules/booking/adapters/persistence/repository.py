@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import select, update, func
+from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 
 from camp_match.modules.booking.adapters.persistence.models import BookingModel
@@ -44,6 +44,9 @@ class SqlAlchemyBookingRepository:
             cancelled_at=booking.cancelled_at,
             cancelled_by=booking.cancelled_by.value if booking.cancelled_by else None,
             cancellation_reason=booking.cancellation_reason,
+            handover_offered_at=booking.handover_offered_at,
+            handover_offered_by=booking.handover_offered_by.value if booking.handover_offered_by else None,
+            handover_accepted_at=booking.handover_accepted_at,
         )
         try:
             self._session.add(model)
@@ -165,6 +168,38 @@ class SqlAlchemyBookingRepository:
         result = await self._session.execute(stmt)
         return result.rowcount > 0
 
+    async def confirm_handover_offered(
+        self, booking_id: EntityId, offered_at: datetime, offered_by: EntityId
+    ) -> bool:
+        stmt = (
+            update(BookingModel)
+            .where(
+                BookingModel.id == booking_id.value,
+                BookingModel.handover_offered_at.is_(None),
+            )
+            .values(
+                handover_offered_at=offered_at,
+                handover_offered_by=offered_by.value,
+            )
+        )
+        result = await self._session.execute(stmt)
+        return result.rowcount > 0
+
+    async def confirm_handover_accepted(
+        self, booking_id: EntityId, accepted_at: datetime
+    ) -> bool:
+        stmt = (
+            update(BookingModel)
+            .where(
+                BookingModel.id == booking_id.value,
+                BookingModel.handover_offered_at.is_not(None),
+                BookingModel.handover_accepted_at.is_(None),
+            )
+            .values(handover_accepted_at=accepted_at)
+        )
+        result = await self._session.execute(stmt)
+        return result.rowcount > 0
+
     def _to_domain(self, model: BookingModel) -> Booking:
         return Booking(
             id=EntityId(model.id),
@@ -186,4 +221,7 @@ class SqlAlchemyBookingRepository:
             cancelled_at=model.cancelled_at,
             cancelled_by=EntityId(model.cancelled_by) if model.cancelled_by else None,
             cancellation_reason=model.cancellation_reason,
+            handover_offered_at=model.handover_offered_at,
+            handover_offered_by=EntityId(model.handover_offered_by) if model.handover_offered_by else None,
+            handover_accepted_at=model.handover_accepted_at,
         )

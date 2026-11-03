@@ -2,8 +2,8 @@
 """Unit and listing management use cases."""
 
 from camp_match.modules.housing.application.errors import (
-    InventoryUnavailable,
     InvalidListingStateTransition,
+    InventoryUnavailable,
     ListingNotFound,
     PropertyNotFound,
     UnitNotFound,
@@ -16,6 +16,8 @@ from camp_match.modules.housing.application.ports.inbound import (
     UnpublishListingCommand,
     UpdateListingCommand,
     UpdateUnitCommand,
+    SuspendListingForSafetyCommand,
+    LiftListingSuspensionCommand,
 )
 from camp_match.modules.housing.application.ports.outbound import (
     AuthorizationService,
@@ -32,11 +34,10 @@ from camp_match.modules.housing.domain.value_objects import (
     PropertyType,
 )
 from camp_match.modules.security.domain.value_objects import Permission
-from camp_match.shared_kernel.domain.identifiers import EntityId
 from camp_match.shared_kernel.application.pagination import Page, PageRequest
-
-
 from camp_match.shared_kernel.application.unit_of_work import UnitOfWork
+from camp_match.shared_kernel.domain.identifiers import EntityId
+
 
 class CreateUnitUseCase:
     def __init__(
@@ -190,8 +191,8 @@ class UpdateListingUseCase:
             command.identity_id, Permission.HOUSING_MANAGE, resource_owner_id=prop.provider_id
         )
 
-        if listing.status == ListingStatus.ARCHIVED:
-            raise InvalidListingStateTransition("Cannot update an archived listing")
+        if listing.status in (ListingStatus.ARCHIVED, ListingStatus.SUSPENDED):
+            raise InvalidListingStateTransition("Cannot update an archived or suspended listing")
 
         if command.title:
             listing.title = command.title
@@ -260,6 +261,9 @@ class PublishListingUseCase:
         listing = await self.listing_repo.get_by_id(command.listing_id)
         if not listing:
             raise ListingNotFound(f"Listing {command.listing_id} not found")
+            
+        if listing.status == ListingStatus.SUSPENDED:
+            raise InvalidListingStateTransition("Cannot modify a suspended listing")
         
         prop = await self.prop_repo.get_by_id(listing.property_id)
         if not prop:
@@ -308,6 +312,9 @@ class UnpublishListingUseCase:
         listing = await self.listing_repo.get_by_id(command.listing_id)
         if not listing:
             raise ListingNotFound(f"Listing {command.listing_id} not found")
+            
+        if listing.status == ListingStatus.SUSPENDED:
+            raise InvalidListingStateTransition("Cannot modify a suspended listing")
         
         prop = await self.prop_repo.get_by_id(listing.property_id)
         if not prop:
@@ -340,6 +347,9 @@ class ArchiveListingUseCase:
         if not listing:
             raise ListingNotFound(f"Listing {command.listing_id} not found")
             
+        if listing.status == ListingStatus.SUSPENDED:
+            raise InvalidListingStateTransition("Cannot modify a suspended listing")
+            
         prop = await self.prop_repo.get_by_id(listing.property_id)
         if not prop:
             raise PropertyNotFound(f"Property {listing.property_id} not found")
@@ -351,3 +361,62 @@ class ArchiveListingUseCase:
         listing.transition_to(ListingStatus.ARCHIVED)
         await self.listing_repo.update(listing)
         await self.uow.commit()
+
+
+class SuspendListingForSafetyUseCase:
+    def __init__(
+        self,
+        listing_repo: ListingRepository,
+        auth: AuthorizationService,
+        uow: UnitOfWork,
+    ):
+        self.listing_repo = listing_repo
+        self.auth = auth
+        self.uow = uow
+
+    async def __call__(self, command: SuspendListingForSafetyCommand) -> None:
+        await self.auth.authorize(command.identity_id, Permission.HOUSING_SAFETY_SUSPEND)
+        
+        listing = await self.listing_repo.get_by_id(command.listing_id)
+        if not listing:
+            raise ListingNotFound(f"Listing {command.listing_id} not found")
+            
+        if listing.status == ListingStatus.SUSPENDED:
+            return
+            
+        if listing.status not in (ListingStatus.PUBLISHED, ListingStatus.UNAVAILABLE):
+            raise InvalidListingStateTransition(f"Cannot suspend listing in status {listing.status}")
+            
+        listing.transition_to(ListingStatus.SUSPENDED)
+        listing.suspension_reference = command.source_reference
+        await self.listing_repo.update(listing)
+        await self.uow.commit()
+
+
+class LiftListingSuspensionUseCase:
+    def __init__(
+        self,
+        listing_repo: ListingRepository,
+        auth: AuthorizationService,
+        uow: UnitOfWork,
+    ):
+        self.listing_repo = listing_repo
+        self.auth = auth
+        self.uow = uow
+
+    async def __call__(self, command: LiftListingSuspensionCommand) -> None:
+        await self.auth.authorize(command.identity_id, Permission.HOUSING_SAFETY_SUSPEND)
+        
+        listing = await self.listing_repo.get_by_id(command.listing_id)
+        if not listing:
+            raise ListingNotFound(f"Listing {command.listing_id} not found")
+            
+        if listing.status == ListingStatus.SUSPENDED:
+            listing.transition_to(ListingStatus.UNAVAILABLE)
+            listing.suspension_reference = None
+            await self.listing_repo.update(listing)
+            await self.uow.commit()
+        else:
+            if listing.suspension_reference is not None and command.source_reference is not None and listing.suspension_reference != command.source_reference:
+                raise InvalidListingStateTransition("Suspension reference mismatch")
+            # Success no-op

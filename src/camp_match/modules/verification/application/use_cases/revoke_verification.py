@@ -1,11 +1,13 @@
+"""Revoke verification use case."""
 from __future__ import annotations
 
-import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+
+import structlog
 
 from camp_match.modules.verification.application.errors import (
-    VerificationCaseNotFound,
     InvalidVerificationTransition,
+    VerificationCaseNotFound,
 )
 from camp_match.modules.verification.application.ports.inbound import (
     RevokeVerificationRequest,
@@ -14,10 +16,17 @@ from camp_match.modules.verification.application.ports.outbound import (
     HistoryRepository,
     VerificationCaseRepository,
 )
+from camp_match.modules.verification.domain.events import VerificationDecisionRecorded
 from camp_match.modules.verification.domain.value_objects import VerificationStatus
+from camp_match.shared_kernel.application.event_bus import (
+    EventBus,
+    NoOpEventBus,
+    publish_best_effort,
+)
 from camp_match.shared_kernel.application.unit_of_work import UnitOfWork
+from camp_match.shared_kernel.domain.identifiers import EntityId
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 
 class RevokeVerificationUseCase:
@@ -26,10 +35,12 @@ class RevokeVerificationUseCase:
         case_repo: VerificationCaseRepository,
         history_repo: HistoryRepository,
         uow: UnitOfWork,
+        event_bus: EventBus | None = None,
     ):
         self.case_repo = case_repo
         self.history_repo = history_repo
         self.uow = uow
+        self.event_bus = event_bus or NoOpEventBus()
 
     async def execute(self, request: RevokeVerificationRequest) -> None:
         if not request.revocation_reason or not request.revocation_reason.strip():
@@ -42,7 +53,7 @@ class RevokeVerificationUseCase:
         if case.status != VerificationStatus.VERIFIED:
             raise InvalidVerificationTransition("Only VERIFIED cases can be revoked.")
 
-        revoked_at = datetime.now(timezone.utc)
+        revoked_at = datetime.now(UTC)
 
         async with self.uow:
             updated = await self.case_repo.update_status_conditionally(
@@ -63,6 +74,16 @@ class RevokeVerificationUseCase:
                 details=f"Verification revoked: {request.revocation_reason}",
             )
             await self.uow.commit()
+
+        event = VerificationDecisionRecorded(
+            event_id=EntityId.new(),
+            occurred_at=revoked_at,
+            case_id=case.id,
+            target_type=case.target_type,
+            target_id=case.target_id,
+            decision="REVOKED",
+        )
+        await publish_best_effort(self.event_bus, event, logger)
 
         logger.warning(
             "verification_revoked_warning: case_id=%s revoked_by=%s reason=%s",

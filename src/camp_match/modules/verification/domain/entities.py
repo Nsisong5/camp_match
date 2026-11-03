@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from camp_match.modules.verification.domain.value_objects import (
@@ -40,10 +40,10 @@ class VerificationCase:
         if self.revoked_at is not None:
             return False
         if self.expires_at is not None:
-            current_time = now or datetime.now(timezone.utc)
+            current_time = now or datetime.now(UTC)
             # Handle naive vs aware datetime comparison safely
             if self.expires_at.tzinfo is not None and current_time.tzinfo is None:
-                current_time = current_time.replace(tzinfo=timezone.utc)
+                current_time = current_time.replace(tzinfo=UTC)
             elif self.expires_at.tzinfo is None and current_time.tzinfo is not None:
                 current_time = current_time.replace(tzinfo=None)
             if self.expires_at <= current_time:

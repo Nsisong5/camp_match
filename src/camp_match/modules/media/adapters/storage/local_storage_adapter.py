@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from pathlib import Path
-from camp_match.modules.media.application.ports.outbound import AccessGrant, StoragePort
+
 from camp_match.modules.media.adapters.storage.access_token import issue_token
+from camp_match.modules.media.application.ports.outbound import AccessGrant, StoragePort
 
 
 class LocalFileSystemStorageAdapter(StoragePort):

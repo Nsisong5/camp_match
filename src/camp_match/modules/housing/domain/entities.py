@@ -79,13 +79,15 @@ class Listing:
     description: str | None
     price: Price
     status: ListingStatus = ListingStatus.DRAFT
+    suspension_reference: EntityId | None = None
     created_at: datetime = field(default_factory=datetime.now)
     updated_at: datetime = field(default_factory=datetime.now)
 
     _TRANSITIONS = {
         ListingStatus.DRAFT: {ListingStatus.PUBLISHED, ListingStatus.ARCHIVED},
-        ListingStatus.PUBLISHED: {ListingStatus.UNAVAILABLE, ListingStatus.ARCHIVED},
-        ListingStatus.UNAVAILABLE: {ListingStatus.PUBLISHED, ListingStatus.ARCHIVED},
+        ListingStatus.PUBLISHED: {ListingStatus.UNAVAILABLE, ListingStatus.ARCHIVED, ListingStatus.SUSPENDED},
+        ListingStatus.UNAVAILABLE: {ListingStatus.PUBLISHED, ListingStatus.ARCHIVED, ListingStatus.SUSPENDED},
+        ListingStatus.SUSPENDED: {ListingStatus.UNAVAILABLE},
         ListingStatus.ARCHIVED: set(),
     }
 

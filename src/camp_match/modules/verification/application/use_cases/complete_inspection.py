@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from camp_match.modules.verification.application.errors import (
     InspectionNotFound,
+    InvalidVerificationTransition,
     VerificationCaseNotFound,
     VerificationForbiddenError,
-    InvalidVerificationTransition,
 )
 from camp_match.modules.verification.application.ports.inbound import (
     CompleteInspectionRequest,
@@ -74,7 +74,7 @@ class CompleteInspectionUseCase:
             result = InspectionResult.PARTIALLY_PASSED
 
         inspection.status = InspectionStatus.COMPLETED
-        inspection.completed_at = datetime.now(timezone.utc)
+        inspection.completed_at = datetime.now(UTC)
         inspection.result = result
 
         case = await self.case_repo.get_by_id(inspection.verification_case_id)

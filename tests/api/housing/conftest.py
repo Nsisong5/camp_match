@@ -1,6 +1,8 @@
 import pytest
 from httpx import AsyncClient
+
 from camp_match.shared_kernel.domain.identifiers import EntityId
+
 
 async def create_authenticated_user(client: AsyncClient, email: str, profile_type: str) -> str:
     # 1. Register
@@ -43,8 +45,9 @@ async def another_scout_token(client: AsyncClient) -> str:
 async def admin_token(client: AsyncClient, db_session) -> str:
     token = await create_authenticated_user(client, "admin@example.com", "SCOUT")
     # Manually promote to ADMIN in DB
-    from camp_match.modules.identity.adapters.persistence.models import AccountModel
     from sqlalchemy import select
+
+    from camp_match.modules.identity.adapters.persistence.models import AccountModel
     
     result = await db_session.execute(select(AccountModel).where(AccountModel.email == "admin@example.com"))
     account = result.scalar_one()

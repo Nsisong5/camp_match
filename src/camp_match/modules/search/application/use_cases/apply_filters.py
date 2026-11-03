@@ -1,10 +1,10 @@
+from camp_match.modules.search.domain.ranking import haversine_distance
 from camp_match.modules.search.domain.value_objects import (
     CandidateListing,
+    Coordinates,
     SearchCriteria,
     VerificationState,
-    Coordinates,
 )
-from camp_match.modules.search.domain.ranking import haversine_distance
 from camp_match.shared_kernel.domain.identifiers import EntityId
 
 

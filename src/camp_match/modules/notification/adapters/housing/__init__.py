@@ -1,0 +1,1 @@
+"""Notification housing adapters package."""

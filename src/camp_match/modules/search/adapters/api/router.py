@@ -1,15 +1,22 @@
 from __future__ import annotations
 
 from typing import Annotated
-from fastapi import APIRouter, Depends, Query, HTTPException
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from camp_match.modules.search.adapters.api import dependencies, schemas
-from camp_match.modules.search.adapters.api.schemas import SearchRequestSchema, ScoredCandidateResponse, SearchPageSchema
-from camp_match.modules.search.application.use_cases.search_listings import SearchListings
-from camp_match.modules.search.application.use_cases.get_discovery_feed import GetDiscoveryFeed
-from camp_match.modules.search.domain.value_objects import SearchCriteria
+
 from camp_match.modules.identity.adapters.api.dependencies import get_auth_session
-from camp_match.modules.identity.adapters.security.jwt_session import JwtAuthenticationSessionAdapter
+from camp_match.modules.identity.adapters.security.jwt_session import (
+    JwtAuthenticationSessionAdapter,
+)
+from camp_match.modules.search.adapters.api import dependencies, schemas
+from camp_match.modules.search.adapters.api.schemas import (
+    SearchPageSchema,
+    SearchRequestSchema,
+)
+from camp_match.modules.search.application.use_cases.get_discovery_feed import GetDiscoveryFeed
+from camp_match.modules.search.application.use_cases.search_listings import SearchListings
+from camp_match.modules.search.domain.value_objects import SearchCriteria
 from camp_match.shared_kernel.application.pagination import PageRequest
 from camp_match.shared_kernel.domain.identifiers import EntityId
 

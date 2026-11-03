@@ -3,7 +3,6 @@
 
 from camp_match.shared_kernel.application.errors import (
     ConflictError,
-    ForbiddenError,
     NotFoundError,
     ValidationError,
 )

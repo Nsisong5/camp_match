@@ -21,6 +21,21 @@ class Permission(Enum):
     VERIFICATION_INSPECT = "verification.inspect"
     VERIFICATION_REVIEW = "verification.review"
     BOOKING_CONFIRM = "booking.confirm"
+    PAYMENT_REVIEW = "payment.review"
+    PAYMENT_AUTHORIZE_RELEASE = "payment.authorize_release"
+    PAYMENT_AUTHORIZE_REFUND = "payment.authorize_refund"
+    MESSAGING_PARTICIPATE = "messaging.participate"
+    SAFETY_REPORT_SUBMIT = "safety.report.submit"
+    SAFETY_CASE_REVIEW = "safety.case.review"
+    SAFETY_EVIDENCE_VIEW = "safety.evidence.view"
+    SAFETY_ENFORCEMENT_APPROVE = "safety.enforcement.approve"
+    MESSAGING_RESTRICT = "messaging.restrict"
+    HOUSING_SAFETY_SUSPEND = "housing.safety.suspend"
+    ADMIN_OVERVIEW_VIEW = "admin.overview.view"
+    ADMIN_ISSUES_MANAGE = "admin.issues.manage"
+    ADMIN_AUDIT_VIEW = "admin.audit.view"
+    ADMIN_STAFF_MANAGE = "admin.staff.manage"
+    ADMIN_RECOVERY_RUN = "admin.recovery.run"
     EXAMPLE_TEST_PERMISSION = "test.ownership.scoped"  # Test-only
 
 

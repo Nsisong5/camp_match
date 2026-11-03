@@ -1,3 +1,4 @@
+"""Confirm booking use case."""
 from __future__ import annotations
 
 import structlog
@@ -6,14 +7,23 @@ from camp_match.modules.booking.application.errors import (
     BookingNotFound,
     InvalidBookingStateTransition,
 )
-from camp_match.modules.booking.application.ports.inbound import ConfirmBookingRequest
+from camp_match.modules.booking.application.ports.inbound import (
+    ConfirmBookingRequest,
+)
 from camp_match.modules.booking.application.ports.outbound import (
     AuthorizationService,
     BookingRepository,
 )
+from camp_match.modules.booking.domain.events import BookingConfirmed
 from camp_match.modules.security.domain.value_objects import Permission
+from camp_match.shared_kernel.application.event_bus import (
+    EventBus,
+    NoOpEventBus,
+    publish_best_effort,
+)
 from camp_match.shared_kernel.application.unit_of_work import UnitOfWork
 from camp_match.shared_kernel.domain.clock import Clock
+from camp_match.shared_kernel.domain.identifiers import EntityId
 
 logger = structlog.get_logger()
 
@@ -25,11 +35,13 @@ class ConfirmBookingUseCase:
         authorization_service: AuthorizationService,
         uow: UnitOfWork,
         clock: Clock,
+        event_bus: EventBus | None = None,
     ) -> None:
         self.booking_repo = booking_repo
         self.authorization_service = authorization_service
         self.uow = uow
         self.clock = clock
+        self.event_bus = event_bus or NoOpEventBus()
 
     async def execute(self, request: ConfirmBookingRequest) -> None:
         # 1. Look up booking
@@ -53,6 +65,16 @@ class ConfirmBookingUseCase:
                     "Booking cannot be confirmed (already confirmed, cancelled, or expired)."
                 )
             await self.uow.commit()
+
+        event = BookingConfirmed(
+            event_id=EntityId.new(),
+            occurred_at=now,
+            booking_id=booking.id,
+            student_id=booking.student_id,
+            property_id=booking.property_id,
+            listing_id=booking.listing_id,
+        )
+        await publish_best_effort(self.event_bus, event, logger)
 
         logger.info(
             "booking_confirmed",

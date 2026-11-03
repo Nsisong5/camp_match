@@ -2,6 +2,7 @@
 """Release slot use case."""
 
 import logging
+
 from camp_match.modules.housing.application.ports.outbound import UnitRepository
 from camp_match.shared_kernel.domain.identifiers import EntityId
 

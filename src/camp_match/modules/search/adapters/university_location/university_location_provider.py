@@ -1,7 +1,11 @@
 from camp_match.modules.search.application.ports.outbound import UniversityLocationProvider
-from camp_match.modules.university_location.application.ports.inbound import GetCampus, GetMainCampus
-from camp_match.modules.university_location.application.errors import CampusNotFound
 from camp_match.modules.search.domain.value_objects import Coordinates, EntityId
+from camp_match.modules.university_location.application.errors import CampusNotFound
+from camp_match.modules.university_location.application.ports.inbound import (
+    GetCampus,
+    GetMainCampus,
+)
+
 
 class UniversityLocationProviderAdapter(UniversityLocationProvider):
     def __init__(self, get_campus: GetCampus, get_main_campus: GetMainCampus | None = None):

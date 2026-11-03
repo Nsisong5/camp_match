@@ -2,9 +2,10 @@
 """Housing University Location Provider adapter."""
 
 from camp_match.modules.housing.application.ports.outbound import UniversityLocationProvider
-from camp_match.modules.university_location.application.ports.inbound import GetCampus
 from camp_match.modules.university_location.application.errors import CampusNotFound
+from camp_match.modules.university_location.application.ports.inbound import GetCampus
 from camp_match.shared_kernel.domain.identifiers import EntityId
+
 
 class InProcessUniversityLocationProvider(UniversityLocationProvider):
     def __init__(self, get_campus_port: GetCampus):

@@ -1,10 +1,10 @@
-from datetime import datetime, timezone
-from camp_match.modules.search.application.strategies.discovery_strategy import DiscoveryStrategy
+from datetime import datetime
+
 from camp_match.modules.search.application.strategies.recently_added import RecentlyAddedStrategy
-from camp_match.modules.search.domain.value_objects import ScoredCandidate, CandidateListing, VerificationState, Coordinates
 from camp_match.modules.search.domain.ranking import haversine_distance
-from camp_match.shared_kernel.domain.identifiers import EntityId
+from camp_match.modules.search.domain.value_objects import ScoredCandidate, VerificationState
 from camp_match.shared_kernel.application.pagination import Page, PageRequest
+from camp_match.shared_kernel.domain.identifiers import EntityId
 
 
 class RecommendedForYouStrategy:

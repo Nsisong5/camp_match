@@ -1,58 +1,71 @@
 """Module Housing: router.py"""
 """Router for housing module."""
 
-from typing import Annotated, List, Generic, TypeVar, Optional
+from typing import Annotated, Generic, TypeVar
 from uuid import UUID
-from fastapi import APIRouter, Depends, status, UploadFile, HTTPException
-from camp_match.modules.housing.adapters.api import schemas, dependencies
+
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
+from pydantic import BaseModel
+
+from camp_match.modules.housing.adapters.api import dependencies, schemas
+from camp_match.modules.housing.adapters.profile.profile_provider import InProcessProfileProvider
+from camp_match.modules.housing.adapters.security.authorization import InProcessAuthorizationService
+from camp_match.modules.housing.adapters.university_location.university_location_provider import (
+    InProcessUniversityLocationProvider,
+)
 from camp_match.modules.housing.application.ports.inbound import (
-    CreatePropertyCommand, UpdatePropertyCommand, ArchivePropertyCommand,
-    CreateUnitCommand, UpdateUnitCommand,
-    CreateListingCommand, UpdateListingCommand, PublishListingCommand,
-    UnpublishListingCommand, ArchiveListingCommand
+    ArchivePropertyCommand,
+    CreateListingCommand,
+    CreatePropertyCommand,
+    CreateUnitCommand,
+    PublishListingCommand,
+    UpdatePropertyCommand,
+    UpdateUnitCommand,
 )
-from camp_match.modules.housing.application.use_cases.create_property import CreatePropertyUseCase
-from camp_match.modules.housing.application.use_cases.property_management import UpdatePropertyUseCase, ArchivePropertyUseCase, ListPropertiesForProviderUseCase, GetPropertyUseCase
-from camp_match.modules.housing.application.use_cases.unit_listing_management import (
-    CreateUnitUseCase, UpdateUnitUseCase, CreateListingUseCase, UpdateListingUseCase,
-    PublishListingUseCase, UnpublishListingUseCase, ArchiveListingUseCase,
-    GetListingUseCase, GetUnitUseCase, ListActiveListingsUseCase
-)
-from camp_match.modules.housing.application.use_cases.check_availability import CheckAvailabilityUseCase
-from camp_match.platform.security.authentication import get_current_identity_id
-from camp_match.shared_kernel.domain.identifiers import EntityId
-from camp_match.shared_kernel.application.pagination import PageRequest
-from camp_match.modules.housing.adapters.api.schemas import PropertyResponseSchema
-from pydantic import BaseModel, ConfigDict, Field
-from camp_match.shared_kernel.application.unit_of_work import UnitOfWork
 from camp_match.modules.housing.application.ports.outbound import (
+    ListingRepository,
     PropertyRepository,
     UnitRepository,
-    ListingRepository,
-    AuthorizationService,
 )
-from camp_match.modules.housing.adapters.security.authorization import InProcessAuthorizationService
-from camp_match.modules.housing.adapters.university_location.university_location_provider import InProcessUniversityLocationProvider
-from camp_match.modules.housing.adapters.profile.profile_provider import InProcessProfileProvider
-
+from camp_match.modules.housing.application.use_cases.create_property import CreatePropertyUseCase
+from camp_match.modules.housing.application.use_cases.property_management import (
+    ArchivePropertyUseCase,
+    GetPropertyUseCase,
+    ListPropertiesForProviderUseCase,
+    UpdatePropertyUseCase,
+)
+from camp_match.modules.housing.application.use_cases.unit_listing_management import (
+    CreateListingUseCase,
+    CreateUnitUseCase,
+    GetListingUseCase,
+    GetUnitUseCase,
+    PublishListingUseCase,
+    UpdateUnitUseCase,
+)
 from camp_match.modules.media.adapters.api.dependencies import (
-    get_upload_media,
     get_get_authorized_access,
+    get_upload_media,
 )
 from camp_match.modules.media.application.ports.inbound import (
-    UploadMediaRequest,
     GetAuthorizedAccessRequest,
+    UploadMediaRequest,
 )
-from camp_match.modules.media.domain.value_objects import MediaPurpose
+from camp_match.modules.media.application.use_cases.get_authorized_access import (
+    GetAuthorizedAccessUseCase,
+)
 from camp_match.modules.media.application.use_cases.upload_media import UploadMediaUseCase
-from camp_match.modules.media.application.use_cases.get_authorized_access import GetAuthorizedAccessUseCase
+from camp_match.modules.media.domain.value_objects import MediaPurpose
 from camp_match.modules.security.domain.value_objects import Permission
+from camp_match.platform.security.authentication import get_current_identity_id
 from camp_match.shared_kernel.application.errors import ForbiddenError
+from camp_match.shared_kernel.application.pagination import PageRequest
+from camp_match.shared_kernel.application.unit_of_work import UnitOfWork
+from camp_match.shared_kernel.domain.identifiers import EntityId
 
 T = TypeVar("T")
 
 class PageSchema(BaseModel, Generic[T]):
-    items: List[T]
+    items: list[T]
     total: int
     page: int
     page_size: int

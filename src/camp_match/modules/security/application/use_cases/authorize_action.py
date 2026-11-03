@@ -8,6 +8,7 @@ from camp_match.modules.security.domain.policy import is_ownership_scoped, permi
 from camp_match.modules.security.domain.value_objects import (
     AuthorizationDecision,
     AuthorizationOutcome,
+    Permission,
     Principal,
     Role,
 )
@@ -39,7 +40,7 @@ class AuthorizeActionUseCase:
         principal = Principal.create(request.identity_id, frozenset(resolved_roles))
         
         # 2. Map permissions
-        granted_permissions = set()
+        granted_permissions: set[Permission] = set()
         for role in principal.roles:
             granted_permissions.update(permissions_for(role))
             

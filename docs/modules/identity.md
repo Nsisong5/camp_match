@@ -32,6 +32,9 @@ The module follows hexagonal architecture:
 - `EmailAddress` value object.
 - `Password` value object.
 
+## Note on Admin Routes
+Unaudited admin routes (`POST /api/v1/auth/{id}/disable` and `reactivate`) were retired in Chunk 14 and replaced by audited Admin & Operations account management endpoints (`POST /api/v1/admin/accounts/{id}/disable` and `/reactivate`).
+
 ## Testing Strategy
 
 - **Unit**: Domain logic, use cases (mocks for infrastructure).

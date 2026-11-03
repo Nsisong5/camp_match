@@ -1,10 +1,9 @@
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import select
-from camp_match.shared_kernel.domain.identifiers import EntityId
-from camp_match.modules.identity.adapters.persistence.models import AccountModel
+
 from camp_match.modules.security.adapters.persistence.models import SecurityUserRoleModel
 from camp_match.modules.security.domain.value_objects import Role
+from camp_match.shared_kernel.domain.identifiers import EntityId
 
 
 async def create_authenticated_user(client: AsyncClient, email: str, profile_type: str = "SCOUT") -> tuple[str, str]:

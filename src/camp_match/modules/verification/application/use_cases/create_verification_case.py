@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from camp_match.modules.verification.application.errors import (
+    InvalidVerificationTransition,
     VerificationCaseNotFound,
     VerificationForbiddenError,
-    InvalidVerificationTransition,
 )
 from camp_match.modules.verification.application.ports.inbound import (
     CreateVerificationCaseRequest,

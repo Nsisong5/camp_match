@@ -12,12 +12,8 @@ from camp_match.modules.identity.adapters.security.password_hasher import Scrypt
 from camp_match.modules.identity.application.use_cases.authenticate_user import (
     AuthenticateUserUseCase,
 )
-from camp_match.modules.identity.application.use_cases.disable_account import DisableAccountUseCase
 from camp_match.modules.identity.application.use_cases.get_identity import GetIdentityByIdUseCase
 from camp_match.modules.identity.application.use_cases.logout import LogoutUseCase
-from camp_match.modules.identity.application.use_cases.reactivate_account import (
-    ReactivateAccountUseCase,
-)
 from camp_match.modules.identity.application.use_cases.refresh_session import RefreshSessionUseCase
 from camp_match.modules.identity.application.use_cases.register_account import (
     RegisterAccountUseCase,
@@ -90,29 +86,3 @@ def get_logout(
 
 def get_get_identity(repo: Annotated[SqlAlchemyIdentityRepository, Depends(get_identity_repository)]) -> GetIdentityByIdUseCase:
     return GetIdentityByIdUseCase(repository=repo)
-
-def get_disable_account(
-    repo: Annotated[SqlAlchemyIdentityRepository, Depends(get_identity_repository)],
-    clock: Annotated[SystemClock, Depends(get_clock)],
-    event_bus: Annotated[InMemoryEventBus, Depends(get_event_bus)],
-    uow: Annotated[UnitOfWork, Depends(get_uow)],
-) -> DisableAccountUseCase:
-    return DisableAccountUseCase(
-        repository=repo,
-        clock=clock,
-        event_bus=event_bus,
-        unit_of_work=uow
-    )
-
-def get_reactivate_account(
-    repo: Annotated[SqlAlchemyIdentityRepository, Depends(get_identity_repository)],
-    clock: Annotated[SystemClock, Depends(get_clock)],
-    event_bus: Annotated[InMemoryEventBus, Depends(get_event_bus)],
-    uow: Annotated[UnitOfWork, Depends(get_uow)],
-) -> ReactivateAccountUseCase:
-    return ReactivateAccountUseCase(
-        repository=repo,
-        clock=clock,
-        event_bus=event_bus,
-        unit_of_work=uow
-    )

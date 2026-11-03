@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from camp_match.modules.verification.application.ports.outbound import ProfileProvider
+
 from camp_match.modules.profile.adapters.persistence.repository import SqlAlchemyProfileRepository
 from camp_match.modules.profile.domain.value_objects import ProfileType
+from camp_match.modules.verification.application.ports.outbound import ProfileProvider
 from camp_match.shared_kernel.domain.identifiers import EntityId
 
 if TYPE_CHECKING:

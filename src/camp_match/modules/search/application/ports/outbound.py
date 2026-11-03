@@ -1,5 +1,7 @@
-from camp_match.modules.search.domain.value_objects import AccommodationType, BillingPeriod, Coordinates, EntityId, Amenity
 from typing import Protocol
+
+from camp_match.modules.search.domain.value_objects import AccommodationType, Coordinates, EntityId
+
 
 class HousingProvider(Protocol):
     async def list_eligible_candidates(

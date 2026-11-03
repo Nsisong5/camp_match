@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from typing import List, Optional
 from uuid import UUID
+
 from pydantic import BaseModel, ConfigDict, Field
 
 from camp_match.modules.housing.domain.value_objects import (
@@ -17,29 +17,29 @@ class PropertyResponseSchema(BaseModel):
     provider_id: UUID
     property_type: PropertyType
     name: str
-    description: Optional[str]
+    description: str | None
     address: str
     latitude: float
     longitude: float
-    campus_id: Optional[UUID]
+    campus_id: UUID | None
     status: str
 
 class CreatePropertySchema(BaseModel):
     name: str
     property_type: PropertyType
-    description: Optional[str] = None
+    description: str | None = None
     address: str
     latitude: float = Field(ge=-90, le=90)
     longitude: float = Field(ge=-180, le=180)
-    campus_id: Optional[UUID] = None
+    campus_id: UUID | None = None
 
 class UpdatePropertySchema(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    address: Optional[str] = None
-    latitude: Optional[float] = Field(None, ge=-90, le=90)
-    longitude: Optional[float] = Field(None, ge=-180, le=180)
-    campus_id: Optional[UUID] = None
+    name: str | None = None
+    description: str | None = None
+    address: str | None = None
+    latitude: float | None = Field(None, ge=-90, le=90)
+    longitude: float | None = Field(None, ge=-180, le=180)
+    campus_id: UUID | None = None
 
 class UnitResponseSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -60,11 +60,11 @@ class CreateUnitSchema(BaseModel):
     has_kitchen: bool = False
 
 class UpdateUnitSchema(BaseModel):
-    label: Optional[str] = None
-    total_capacity: Optional[int] = Field(None, gt=0)
-    is_furnished: Optional[bool] = None
-    has_private_bathroom: Optional[bool] = None
-    has_kitchen: Optional[bool] = None
+    label: str | None = None
+    total_capacity: int | None = Field(None, gt=0)
+    is_furnished: bool | None = None
+    has_private_bathroom: bool | None = None
+    has_kitchen: bool | None = None
 
 class PriceSchema(BaseModel):
     amount_kobo: int
@@ -77,30 +77,30 @@ class ListingResponseSchema(BaseModel):
     property_id: UUID
     unit_id: UUID
     title: str
-    description: Optional[str]
+    description: str | None
     price: PriceSchema
     status: str
-    media: List[dict] = []
+    media: list[dict] = []
 
 class CreateListingSchema(BaseModel):
     property_id: UUID
     unit_id: UUID
     title: str
-    description: Optional[str] = None
+    description: str | None = None
     price_amount_kobo: int = Field(ge=0)
     price_currency: Currency
     price_period: BillingPeriod
 
 class UpdateListingSchema(BaseModel):
-    title: Optional[str] = None
-    description: Optional[str] = None
-    price_amount_kobo: Optional[int] = Field(None, ge=0)
+    title: str | None = None
+    description: str | None = None
+    price_amount_kobo: int | None = Field(None, ge=0)
 
 class AvailabilityResponseSchema(BaseModel):
     available_count: int
 
 class PropertyPageSchema(BaseModel):
-    items: List[PropertyResponseSchema]
+    items: list[PropertyResponseSchema]
     total: int
     page: int
     page_size: int

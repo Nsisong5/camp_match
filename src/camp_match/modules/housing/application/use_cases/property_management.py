@@ -10,14 +10,13 @@ from camp_match.modules.housing.application.ports.outbound import (
     AuthorizationService,
     PropertyRepository,
 )
+from camp_match.modules.housing.domain.entities import Property
 from camp_match.modules.housing.domain.value_objects import PropertyStatus
 from camp_match.modules.security.domain.value_objects import Permission
-from camp_match.shared_kernel.domain.identifiers import EntityId
 from camp_match.shared_kernel.application.pagination import Page, PageRequest
-from camp_match.modules.housing.domain.entities import Property
-
-
 from camp_match.shared_kernel.application.unit_of_work import UnitOfWork
+from camp_match.shared_kernel.domain.identifiers import EntityId
+
 
 class UpdatePropertyUseCase:
     def __init__(self, repo: PropertyRepository, auth: AuthorizationService, uow: UnitOfWork):

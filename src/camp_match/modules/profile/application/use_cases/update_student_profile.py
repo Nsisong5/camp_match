@@ -1,15 +1,23 @@
-import structlog
 from uuid import UUID
 
-from camp_match.modules.profile.application.errors import ProfileNotFound, UnsupportedProfileType, InvalidProfileData
+import structlog
+
+from camp_match.modules.profile.application.errors import (
+    InvalidProfileData,
+    ProfileNotFound,
+    UnsupportedProfileType,
+)
 from camp_match.modules.profile.application.ports.inbound import (
     ProfileResponse,
     UpdateStudentProfileRequest,
 )
-from camp_match.modules.profile.application.ports.outbound import ProfileRepository, UniversityProvider
+from camp_match.modules.profile.application.ports.outbound import (
+    ProfileRepository,
+    UniversityProvider,
+)
 from camp_match.modules.profile.domain.value_objects import StudentProfileDetails
-from camp_match.shared_kernel.domain.identifiers import EntityId
 from camp_match.shared_kernel.application.unit_of_work import UnitOfWork
+from camp_match.shared_kernel.domain.identifiers import EntityId
 
 logger = structlog.get_logger()
 

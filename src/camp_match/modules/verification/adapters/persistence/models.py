@@ -4,12 +4,12 @@ from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import (
-    CheckConstraint,
-    ForeignKey,
-    String,
     Boolean,
+    CheckConstraint,
     DateTime,
+    ForeignKey,
     Index,
+    String,
     UniqueConstraint,
     func,
 )

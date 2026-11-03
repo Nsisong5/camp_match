@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from camp_match.modules.verification.application.errors import (
     InspectionNotFound,
-    VerificationForbiddenError,
     InvalidVerificationTransition,
+    VerificationForbiddenError,
 )
 from camp_match.modules.verification.application.ports.inbound import (
     RecordInspectionObservationRequest,

@@ -1,8 +1,10 @@
 from dataclasses import dataclass
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from camp_match.platform.in_memory_event_bus import InMemoryEventBus
+from camp_match.shared_kernel.application.event_bus import publish_best_effort
 from camp_match.shared_kernel.domain.events import DomainEvent
 
 
@@ -75,3 +77,20 @@ async def test_event_bus_multiple_handlers():
     assert "handler_one" in logs
     assert "handler_two" in logs
     assert len(logs) == 2
+
+
+@pytest.mark.asyncio
+@pytest.mark.unit
+async def test_publish_best_effort_swallows_exception():
+    bus = AsyncMock()
+    bus.publish.side_effect = RuntimeError("Publish failed")
+    mock_logger = MagicMock()
+
+    event = DummyEvent(message="test")
+    await publish_best_effort(bus, event, log=mock_logger)
+
+    mock_logger.warning.assert_called_once()
+    call_args = mock_logger.warning.call_args
+    assert call_args[0][0] == "event_publish_failed"
+    assert call_args[1]["event_type"] == "DummyEvent"
+    assert call_args[1]["event_id"] == str(event.event_id)

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from camp_match.modules.media.application.errors import MediaTooLarge, UnsupportedMediaType
 from camp_match.modules.verification.application.errors import (
-    VerificationCaseNotFound,
     InvalidVerificationTransition,
+    VerificationCaseNotFound,
     VerificationForbiddenError,
 )
 from camp_match.modules.verification.application.ports.inbound import (
@@ -18,7 +19,6 @@ from camp_match.modules.verification.application.ports.outbound import (
 )
 from camp_match.modules.verification.domain.entities import Evidence
 from camp_match.modules.verification.domain.value_objects import VerificationStatus
-from camp_match.modules.media.application.errors import MediaTooLarge, UnsupportedMediaType
 from camp_match.shared_kernel.application.unit_of_work import UnitOfWork
 from camp_match.shared_kernel.domain.identifiers import EntityId
 

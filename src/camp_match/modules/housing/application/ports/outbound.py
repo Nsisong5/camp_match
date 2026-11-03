@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass
-from datetime import datetime
-from typing import Protocol, Any
+from typing import Any, Protocol
 
 from camp_match.modules.housing.domain.entities import Listing, Property, Unit
 from camp_match.modules.housing.domain.value_objects import PropertyType

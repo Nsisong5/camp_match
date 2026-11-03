@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from camp_match.modules.verification.application.errors import (
-    VerificationCaseNotFound,
     InvalidVerificationTransition,
+    VerificationCaseNotFound,
 )
 from camp_match.modules.verification.application.ports.inbound import (
     AssignInspectorRequest,
@@ -62,7 +62,7 @@ class AssignInspectorUseCase:
                 case_id=case.id,
                 event_type="inspector_assigned",
                 actor_id=request.caller_id,
-                details=f"Inspector assigned to case",
+                details="Inspector assigned to case",
             )
             await self.uow.commit()
 

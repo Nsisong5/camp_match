@@ -103,6 +103,20 @@ class ArchiveListingCommand:
     listing_id: EntityId
 
 
+@dataclass(frozen=True)
+class SuspendListingForSafetyCommand:
+    identity_id: EntityId
+    listing_id: EntityId
+    source_reference: EntityId
+
+
+@dataclass(frozen=True)
+class LiftListingSuspensionCommand:
+    identity_id: EntityId
+    listing_id: EntityId
+    source_reference: EntityId | None = None
+
+
 class CreateUnit(Protocol):
     async def __call__(self, command: CreateUnitCommand) -> EntityId:
         ...
@@ -130,6 +144,16 @@ class PublishListing(Protocol):
 
 class UnpublishListing(Protocol):
     async def __call__(self, command: UnpublishListingCommand) -> None:
+        ...
+
+
+class SuspendListingForSafety(Protocol):
+    async def __call__(self, command: SuspendListingForSafetyCommand) -> None:
+        ...
+
+
+class LiftListingSuspension(Protocol):
+    async def __call__(self, command: LiftListingSuspensionCommand) -> None:
         ...
 
 

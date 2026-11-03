@@ -4,8 +4,8 @@ from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import (
-    Boolean,
     BigInteger,
+    Boolean,
     CheckConstraint,
     DateTime,
     String,
@@ -37,6 +37,9 @@ class BookingModel(Base):
     cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     cancelled_by: Mapped[UUID | None] = mapped_column(nullable=True)
     cancellation_reason: Mapped[str | None] = mapped_column(String, nullable=True)
+    handover_offered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    handover_offered_by: Mapped[UUID | None] = mapped_column(nullable=True)
+    handover_accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (
         UniqueConstraint("student_id", "idempotency_key", name="uq_student_idempotency_key"),

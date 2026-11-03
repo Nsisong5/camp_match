@@ -9,12 +9,15 @@ from camp_match.modules.housing.application.ports.outbound import (
     UniversityLocationProvider,
 )
 from camp_match.modules.housing.domain.entities import Property
-from camp_match.modules.housing.domain.value_objects import Coordinates, PropertyStatus, PropertyType
+from camp_match.modules.housing.domain.value_objects import (
+    Coordinates,
+    PropertyStatus,
+    PropertyType,
+)
 from camp_match.shared_kernel.application.errors import ForbiddenError
+from camp_match.shared_kernel.application.unit_of_work import UnitOfWork
 from camp_match.shared_kernel.domain.identifiers import EntityId
 
-
-from camp_match.shared_kernel.application.unit_of_work import UnitOfWork
 
 class CreatePropertyUseCase:
     def __init__(

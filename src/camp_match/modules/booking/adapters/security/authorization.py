@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from camp_match.modules.booking.application.ports.outbound import AuthorizationService
 from camp_match.modules.security.application.ports.inbound import AuthorizationRequest
-from camp_match.modules.security.application.use_cases.authorize_action import AuthorizeActionUseCase
+from camp_match.modules.security.application.use_cases.authorize_action import (
+    AuthorizeActionUseCase,
+)
 from camp_match.modules.security.domain.value_objects import AuthorizationOutcome, Permission
 from camp_match.shared_kernel.application.errors import ForbiddenError
 from camp_match.shared_kernel.domain.identifiers import EntityId

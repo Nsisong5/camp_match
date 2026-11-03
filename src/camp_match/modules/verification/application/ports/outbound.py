@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Protocol, TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
 
 from camp_match.modules.verification.domain.value_objects import (
     VerificationStatus,
@@ -10,15 +10,15 @@ from camp_match.modules.verification.domain.value_objects import (
 )
 
 if TYPE_CHECKING:
-    from camp_match.shared_kernel.domain.identifiers import EntityId
+    from camp_match.modules.security.domain.value_objects import Permission
     from camp_match.modules.verification.domain.entities import (
-        VerificationCase,
         Evidence,
         Inspection,
         InspectionObservation,
+        VerificationCase,
         VerificationDecision,
     )
-    from camp_match.modules.security.domain.value_objects import Permission
+    from camp_match.shared_kernel.domain.identifiers import EntityId
 
 
 @dataclass(frozen=True, slots=True)
