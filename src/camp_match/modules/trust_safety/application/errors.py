@@ -27,6 +27,10 @@ class EnforcementActionNotFound(NotFoundError):
     code = "enforcement_action_not_found"
 
 
+class NoteNotFound(NotFoundError):
+    code = "note_not_found"
+
+
 class InvalidReportSubject(ValidationError):
     code = "invalid_report_subject"
 

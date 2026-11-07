@@ -16,6 +16,7 @@ Camp Match backend — modular monolith, hexagonal architecture. Under construct
 ## Database (Termux)
 - Run `scripts/db_bootstrap.sh` once after cloning.
 - Run `scripts/db_start.sh` at the start of every dev/test session.
+- Apply database migrations: `alembic upgrade head` (ensure `DATABASE_URL` is configured in `.env`).
 - Run `scripts/db_stop.sh` when done.
 The server does not survive a Termux/device restart automatically — you always start it manually. Consider `termux-wake-lock` for long sessions.
 

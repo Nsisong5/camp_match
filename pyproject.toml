@@ -7,7 +7,7 @@ readme = "README.md"
 packages = [{include = "camp_match", from = "src"}]
 
 [tool.poetry.dependencies]
-python = ">=3.12,<3.13"
+python = ">=3.12,<3.15"
 fastapi = "*"
 uvicorn = {extras = ["standard"], version = "*"}
 pydantic = "*"

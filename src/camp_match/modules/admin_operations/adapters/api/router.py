@@ -7,8 +7,26 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, Response, status
 
 from camp_match.modules.admin_operations.adapters.api import dependencies, schemas
-from camp_match.modules.admin_operations.application.errors import IdempotencyKeyConflict
+from camp_match.modules.admin_operations.application.errors import (
+    AccountNotActive,
+    AccountNotFound,
+    AdminAccountProtected,
+    IdempotencyKeyConflict,
+    InvalidIssue,
+    InvalidIssueTransition,
+    InvalidReason,
+    InvalidResolution,
+    IssueNotFound,
+    IssueStateChanged,
+    RoleNotManageable,
+    SelfActionNotAllowed,
+)
 from camp_match.modules.admin_operations.application.ports.inbound import IssueDetailView, IssueView
+from camp_match.shared_kernel.application.errors import (
+    ForbiddenError,
+    NotFoundError,
+    ValidationError,
+)
 from camp_match.modules.admin_operations.application.use_cases.assign_issue import (
     AssignIssueUseCase,
 )
@@ -54,6 +72,7 @@ from camp_match.modules.admin_operations.application.use_cases.requeue_failed_sa
 from camp_match.modules.admin_operations.application.use_cases.revoke_staff_role import (
     RevokeStaffRoleUseCase,
 )
+from camp_match.modules.admin_operations.domain.entities import DomainError
 from camp_match.modules.admin_operations.domain.value_objects import (
     AdminActionType,
     IssueCategory,
@@ -65,6 +84,19 @@ from camp_match.shared_kernel.application.pagination import PageRequest
 from camp_match.shared_kernel.domain.identifiers import EntityId
 
 router = APIRouter(prefix="/api/v1/admin", tags=["Admin Operations"])
+
+
+def _handle_error(e: Exception) -> None:
+    from fastapi import HTTPException
+    if isinstance(e, (IssueNotFound, AccountNotFound, NotFoundError)):
+        raise HTTPException(status_code=404, detail=str(e) or "Resource not found.") from e
+    if isinstance(e, (ForbiddenError, SelfActionNotAllowed, AdminAccountProtected)):
+        raise HTTPException(status_code=403, detail=str(e)) from e
+    if isinstance(e, (IssueStateChanged, IdempotencyKeyConflict)):
+        raise HTTPException(status_code=409, detail=str(e)) from e
+    if isinstance(e, (ValidationError, InvalidIssue, InvalidIssueTransition, InvalidReason, InvalidResolution, RoleNotManageable, AccountNotActive, DomainError)):
+        raise HTTPException(status_code=422, detail=str(e)) from e
+    raise e
 
 
 @router.get("/overview", response_model=schemas.OverviewViewSchema)
@@ -185,8 +217,12 @@ async def get_issue(
     issue_id: UUID,
     uc: Annotated[GetIssueUseCase, Depends(dependencies.get_get_issue_use_case)],
 ) -> Any:
-    result = await uc.execute(actor_id, EntityId(issue_id))
-    return _to_issue_detail_schema(result)
+    try:
+        result = await uc.execute(actor_id, EntityId(issue_id))
+        return _to_issue_detail_schema(result)
+    except Exception as e:
+        _handle_error(e)
+        raise
 
 
 @router.post("/operations/issues/{issue_id}/assign", response_model=schemas.IssueViewSchema)
@@ -196,13 +232,17 @@ async def assign_issue(
     body: schemas.AssignIssueSchema,
     uc: Annotated[AssignIssueUseCase, Depends(dependencies.get_assign_issue_use_case)],
 ) -> Any:
-    result = await uc.execute(
-        actor_id=actor_id,
-        issue_id=EntityId(issue_id),
-        assignee_id=EntityId(body.assignee_id) if body.assignee_id else None,
-        version=body.version,
-    )
-    return _to_issue_schema(result)
+    try:
+        result = await uc.execute(
+            actor_id=actor_id,
+            issue_id=EntityId(issue_id),
+            assignee_id=EntityId(body.assignee_id) if body.assignee_id else None,
+            version=body.version,
+        )
+        return _to_issue_schema(result)
+    except Exception as e:
+        _handle_error(e)
+        raise
 
 
 @router.post("/operations/issues/{issue_id}/resolve", response_model=schemas.IssueViewSchema)
@@ -212,14 +252,18 @@ async def resolve_issue(
     body: schemas.ResolveIssueSchema,
     uc: Annotated[ChangeIssueStatusUseCase, Depends(dependencies.get_change_issue_status_use_case)],
 ) -> Any:
-    result = await uc.execute(
-        actor_id,
-        EntityId(issue_id),
-        IssueStatus.RESOLVED,
-        body.version,
-        resolution_summary=body.resolution_summary,
-    )
-    return _to_issue_schema(result)
+    try:
+        result = await uc.execute(
+            actor_id,
+            EntityId(issue_id),
+            IssueStatus.RESOLVED,
+            body.version,
+            resolution_summary=body.resolution_summary,
+        )
+        return _to_issue_schema(result)
+    except Exception as e:
+        _handle_error(e)
+        raise
 
 
 @router.post("/operations/issues/{issue_id}/status", response_model=schemas.IssueViewSchema)
@@ -229,15 +273,19 @@ async def change_issue_status(
     body: schemas.ChangeStatusSchema,
     uc: Annotated[ChangeIssueStatusUseCase, Depends(dependencies.get_change_issue_status_use_case)],
 ) -> Any:
-    result = await uc.execute(
-        actor_id,
-        EntityId(issue_id),
-        body.to_status,
-        body.version,
-        reason=body.reason,
-        resolution_summary=body.resolution_summary,
-    )
-    return _to_issue_schema(result)
+    try:
+        result = await uc.execute(
+            actor_id,
+            EntityId(issue_id),
+            body.to_status,
+            body.version,
+            reason=body.reason,
+            resolution_summary=body.resolution_summary,
+        )
+        return _to_issue_schema(result)
+    except Exception as e:
+        _handle_error(e)
+        raise
 
 
 @router.get("/audit-events", response_model=schemas.PageSchema[schemas.AuditEventViewSchema])

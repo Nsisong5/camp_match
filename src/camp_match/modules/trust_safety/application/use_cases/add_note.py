@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from camp_match.modules.trust_safety.application.errors import InvalidNote
+from camp_match.modules.trust_safety.application.errors import InvalidNote, NoteNotFound
 from camp_match.modules.trust_safety.application.ports.inbound import AddNoteRequest
 from camp_match.modules.trust_safety.application.ports.outbound import (
     CaseRepository,
@@ -46,6 +46,11 @@ class AddNoteUseCase:
 
         if request.kind == NoteKind.CORROBORATED_FACT and not request.cited_evidence_ids:
             raise InvalidNote("CORROBORATED_FACT notes must cite at least one evidence item.")
+
+        if request.corrects_note_id:
+            target_note = await self._note_repo.get_by_id(request.corrects_note_id)
+            if not target_note:
+                raise NoteNotFound("Note to correct not found.")
 
         now = self._clock.now()
         note_id = EntityId.new()

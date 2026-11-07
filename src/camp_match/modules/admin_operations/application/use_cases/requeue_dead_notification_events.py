@@ -35,7 +35,7 @@ class RequeueDeadNotificationEventsUseCase:
             raise InvalidReason(f"Reason must be at least {min_len} characters.")
 
         async def action() -> int:
-            res = await self._notification_recovery.requeue_dead()
+            res = await self._notification_recovery.requeue_dead(actor_id)
             return int(res) if isinstance(res, (int, float)) else 0
 
         count, action_id = await self._audit_recorder.execute(

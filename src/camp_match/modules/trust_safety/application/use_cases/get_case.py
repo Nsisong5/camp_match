@@ -69,8 +69,12 @@ class GetCaseUseCase:
             DecisionView(
                 id=d.id,
                 case_id=d.case_id,
+                cycle=d.cycle,
                 decision_type=d.decision_type,
+                is_final=d.is_final,
                 rationale=d.rationale,
+                cited_evidence_ids=d.cited_evidence_ids,
+                cited_note_ids=d.cited_note_ids,
                 decided_by=d.decided_by,
                 decided_at=d.decided_at,
             )
@@ -160,6 +164,7 @@ class GetCaseUseCase:
                 author_id=n.author_id,
                 kind=n.kind,
                 content=n.content,
+                cited_evidence_ids=n.cited_evidence_ids,
                 corrects_note_id=n.corrects_note_id,
                 created_at=n.created_at,
             )

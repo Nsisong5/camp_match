@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from camp_match.modules.admin_operations.adapters.persistence.issue_repository import (
+    SqlAlchemyIssueRepository,
+)
 from camp_match.modules.admin_operations.application.errors import (
     IssueNotFound,
     IssueStateChanged,
@@ -66,8 +69,9 @@ class ChangeIssueStatusUseCase:
             },
         )
 
-        async with self._uow_factory() as uow:
-            success = await self._issue_repo.update_status(
+        async with self._uow_factory() as session:
+            repo = SqlAlchemyIssueRepository(session)
+            success = await repo.update_status(
                 issue_id,
                 new_status,
                 expected_version=version,
@@ -78,10 +82,12 @@ class ChangeIssueStatusUseCase:
                 raise IssueStateChanged(
                     "Issue state changed concurrently (stale version)."
                 )
-            await self._issue_repo.add_event(event)
-            await uow.commit()
+            await repo.add_event(event)
+            await session.commit()
 
-        final_issue = await self._issue_repo.get(issue_id)
+        async with self._uow_factory() as session:
+            repo = SqlAlchemyIssueRepository(session)
+            final_issue = await repo.get(issue_id)
         assert final_issue is not None
         return IssueView(
             id=final_issue.id,

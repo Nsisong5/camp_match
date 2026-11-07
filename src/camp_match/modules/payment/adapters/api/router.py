@@ -6,6 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from camp_match.modules.payment.adapters.api import dependencies, schemas
+from camp_match.modules.payment.application.errors import PaymentError
 from camp_match.modules.payment.application.ports.inbound import InitiatePaymentRequest
 from camp_match.modules.payment.application.use_cases.execute_refund import ExecuteRefundUseCase
 from camp_match.modules.payment.application.use_cases.execute_release import ExecuteReleaseUseCase
@@ -27,19 +28,22 @@ async def initiate_payment(
     identity_id: Annotated[EntityId, Depends(get_current_identity_id)],
     use_case: Annotated[InitiatePaymentUseCase, Depends(dependencies.get_initiate_payment_use_case)],
 ) -> schemas.PaymentSessionResponseSchema:
-    result = await use_case.execute(
-        InitiatePaymentRequest(
-            booking_id=EntityId(body.booking_id),
-            caller_id=identity_id,
-            idempotency_key=body.idempotency_key,
-            provider_name=body.provider_name,
+    try:
+        result = await use_case.execute(
+            InitiatePaymentRequest(
+                booking_id=EntityId(body.booking_id),
+                caller_id=identity_id,
+                idempotency_key=body.idempotency_key,
+                provider_name=body.provider_name,
+            )
         )
-    )
-    return schemas.PaymentSessionResponseSchema(
-        provider_reference=result.provider_reference,
-        checkout_reference=result.checkout_reference,
-        expires_at=result.expires_at,
-    )
+        return schemas.PaymentSessionResponseSchema(
+            provider_reference=result.provider_reference,
+            checkout_reference=result.checkout_reference,
+            expires_at=result.expires_at,
+        )
+    except PaymentError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
 
 
 @router.get("/disputes/pending", response_model=list[schemas.DisputeResponseSchema])

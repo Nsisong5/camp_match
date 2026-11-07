@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from camp_match.modules.admin_operations.adapters.persistence.issue_repository import (
+    SqlAlchemyIssueRepository,
+)
 from camp_match.modules.admin_operations.application.errors import (
     IdempotencyKeyConflict,
 )
@@ -76,10 +79,11 @@ class CreateIssueUseCase:
             details={"title": title, "category": category.value},
         )
 
-        async with self._uow_factory() as uow:
-            await self._issue_repo.add(issue)
-            await self._issue_repo.add_event(event)
-            await uow.commit()
+        async with self._uow_factory() as session:
+            repo = SqlAlchemyIssueRepository(session)
+            await repo.add(issue)
+            await repo.add_event(event)
+            await session.commit()
 
         return IssueView(
             id=issue.id,
