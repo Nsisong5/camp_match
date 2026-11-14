@@ -12,6 +12,8 @@ class NotificationCategory(StrEnum):
     BOOKING = "BOOKING"
     VERIFICATION = "VERIFICATION"
     SAFETY = "SAFETY"
+    HOUSING = "HOUSING"
+    PAYMENT = "PAYMENT"
 
 
 class TargetType(StrEnum):
@@ -20,6 +22,12 @@ class TargetType(StrEnum):
     VERIFICATION_CASE = "VERIFICATION_CASE"
     SAFETY_REPORT = "SAFETY_REPORT"
     LISTING = "LISTING"
+
+
+class NotificationAction(StrEnum):
+    COMPLETE_PAYMENT = "COMPLETE_PAYMENT"
+    OFFER_HANDOVER = "OFFER_HANDOVER"
+    ACCEPT_HANDOVER = "ACCEPT_HANDOVER"
 
 
 class InboxStatus(StrEnum):
@@ -46,6 +54,18 @@ class NotificationType(StrEnum):
     SAFETY_COMMUNICATION_RESTRICTED = "safety.communication_restricted"
     SAFETY_LISTING_SUSPENDED = "safety.listing_suspended"
     SAFETY_RESTRICTION_LIFTED = "safety.restriction_lifted"
+    BOOKING_CREATED_STUDENT = "booking.created.student"
+    HANDOVER_OFFERED_STUDENT = "handover.offered.student"
+    HANDOVER_ACCEPTED_PROVIDER = "handover.accepted.provider"
+    BOOKING_HANDOVER_REMINDER_PROVIDER = "booking.handover_reminder.provider"
+    BOOKING_ACCEPTANCE_REMINDER_STUDENT = "booking.acceptance_reminder.student"
+    BOOKING_INVALIDATED_STUDENT = "booking.invalidated.student"
+    BOOKING_INVALIDATED_PROVIDER = "booking.invalidated.provider"
+    HOUSING_LISTING_SUSPENDED = "housing.listing_suspended"
+    HOUSING_LISTING_SUSPENSION_LIFTED = "housing.listing_suspension_lifted"
+    PAYMENT_FAILED_STUDENT = "payment.failed.student"
+    PAYMENT_LATE_STUDENT = "payment.late.student"
+    PAYMENT_REVIEW_STUDENT = "payment.review.student"
 
     @property
     def category(self) -> NotificationCategory:
@@ -66,6 +86,18 @@ class NotificationType(StrEnum):
             NotificationType.SAFETY_COMMUNICATION_RESTRICTED: NotificationCategory.SAFETY,
             NotificationType.SAFETY_LISTING_SUSPENDED: NotificationCategory.SAFETY,
             NotificationType.SAFETY_RESTRICTION_LIFTED: NotificationCategory.SAFETY,
+            NotificationType.BOOKING_CREATED_STUDENT: NotificationCategory.BOOKING,
+            NotificationType.HANDOVER_OFFERED_STUDENT: NotificationCategory.BOOKING,
+            NotificationType.HANDOVER_ACCEPTED_PROVIDER: NotificationCategory.BOOKING,
+            NotificationType.BOOKING_HANDOVER_REMINDER_PROVIDER: NotificationCategory.BOOKING,
+            NotificationType.BOOKING_ACCEPTANCE_REMINDER_STUDENT: NotificationCategory.BOOKING,
+            NotificationType.BOOKING_INVALIDATED_STUDENT: NotificationCategory.BOOKING,
+            NotificationType.BOOKING_INVALIDATED_PROVIDER: NotificationCategory.BOOKING,
+            NotificationType.HOUSING_LISTING_SUSPENDED: NotificationCategory.HOUSING,
+            NotificationType.HOUSING_LISTING_SUSPENSION_LIFTED: NotificationCategory.HOUSING,
+            NotificationType.PAYMENT_FAILED_STUDENT: NotificationCategory.PAYMENT,
+            NotificationType.PAYMENT_LATE_STUDENT: NotificationCategory.PAYMENT,
+            NotificationType.PAYMENT_REVIEW_STUDENT: NotificationCategory.PAYMENT,
         }
         return _mapping[self]
 
@@ -88,6 +120,18 @@ class NotificationType(StrEnum):
             NotificationType.SAFETY_COMMUNICATION_RESTRICTED: False,
             NotificationType.SAFETY_LISTING_SUSPENDED: False,
             NotificationType.SAFETY_RESTRICTION_LIFTED: False,
+            NotificationType.BOOKING_CREATED_STUDENT: False,
+            NotificationType.HANDOVER_OFFERED_STUDENT: False,
+            NotificationType.HANDOVER_ACCEPTED_PROVIDER: False,
+            NotificationType.BOOKING_HANDOVER_REMINDER_PROVIDER: False,
+            NotificationType.BOOKING_ACCEPTANCE_REMINDER_STUDENT: False,
+            NotificationType.BOOKING_INVALIDATED_STUDENT: False,
+            NotificationType.BOOKING_INVALIDATED_PROVIDER: True,
+            NotificationType.HOUSING_LISTING_SUSPENDED: False,
+            NotificationType.HOUSING_LISTING_SUSPENSION_LIFTED: False,
+            NotificationType.PAYMENT_FAILED_STUDENT: False,
+            NotificationType.PAYMENT_LATE_STUDENT: False,
+            NotificationType.PAYMENT_REVIEW_STUDENT: False,
         }
         return _collapsible_mapping[self]
 
@@ -104,6 +148,7 @@ class NotificationDraft:
     type: NotificationType
     target: NotificationTarget | None = None
     group_key: str | None = None
+    action: NotificationAction | None = None
 
     def __post_init__(self) -> None:
         if self.group_key is not None and not self.type.is_collapsible:
@@ -111,3 +156,5 @@ class NotificationDraft:
                 f"Notification type {self.type.value} is not collapsible "
                 "but group_key was provided."
             )
+        if self.action is not None and self.target is None:
+            raise ValueError("Action requires a target.")

@@ -73,17 +73,16 @@ class RevokeVerificationUseCase:
                 actor_id=request.caller_id,
                 details=f"Verification revoked: {request.revocation_reason}",
             )
+            event = VerificationDecisionRecorded(
+                event_id=EntityId.new(),
+                occurred_at=revoked_at,
+                case_id=case.id,
+                target_type=case.target_type,
+                target_id=case.target_id,
+                decision="REVOKED",
+            )
+            self.uow.add_event(event)
             await self.uow.commit()
-
-        event = VerificationDecisionRecorded(
-            event_id=EntityId.new(),
-            occurred_at=revoked_at,
-            case_id=case.id,
-            target_type=case.target_type,
-            target_id=case.target_id,
-            decision="REVOKED",
-        )
-        await publish_best_effort(self.event_bus, event, logger)
 
         logger.warning(
             "verification_revoked_warning: case_id=%s revoked_by=%s reason=%s",

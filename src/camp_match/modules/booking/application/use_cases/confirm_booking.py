@@ -19,7 +19,6 @@ from camp_match.modules.security.domain.value_objects import Permission
 from camp_match.shared_kernel.application.event_bus import (
     EventBus,
     NoOpEventBus,
-    publish_best_effort,
 )
 from camp_match.shared_kernel.application.unit_of_work import UnitOfWork
 from camp_match.shared_kernel.domain.clock import Clock
@@ -53,8 +52,14 @@ class ConfirmBookingUseCase:
         if booking.is_hold_expired(self.clock):
             raise InvalidBookingStateTransition("Cannot confirm booking: hold has expired.")
 
-        # 3. Authorize via BOOKING_CONFIRM
-        await self.authorization_service.authorize(request.caller_id, Permission.BOOKING_CONFIRM)
+        # 3. Authorize via BOOKING_CONFIRM or booking student ownership
+        try:
+            await self.authorization_service.authorize(
+                request.caller_id, Permission.BOOKING_CONFIRM
+            )
+        except Exception:
+            if booking.student_id != request.caller_id:
+                raise
 
         # 4. Concurrency-safe write (conditional UPDATE)
         now = self.clock.now()
@@ -64,17 +69,16 @@ class ConfirmBookingUseCase:
                 raise InvalidBookingStateTransition(
                     "Booking cannot be confirmed (already confirmed, cancelled, or expired)."
                 )
+            event = BookingConfirmed(
+                event_id=EntityId.new(),
+                occurred_at=now,
+                booking_id=booking.id,
+                student_id=booking.student_id,
+                property_id=booking.property_id,
+                listing_id=booking.listing_id,
+            )
+            self.uow.add_event(event)
             await self.uow.commit()
-
-        event = BookingConfirmed(
-            event_id=EntityId.new(),
-            occurred_at=now,
-            booking_id=booking.id,
-            student_id=booking.student_id,
-            property_id=booking.property_id,
-            listing_id=booking.listing_id,
-        )
-        await publish_best_effort(self.event_bus, event, logger)
 
         logger.info(
             "booking_confirmed",

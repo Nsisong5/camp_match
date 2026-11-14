@@ -16,4 +16,10 @@ class GetUnreadCountUseCase:
 
     async def execute(self, request: GetUnreadCountRequest) -> UnreadCountResult:
         count = await self.notification_repo.count_unread(request.actor_id)
-        return UnreadCountResult(unread_count=count)
+        action_required_count = await self.notification_repo.count_action_required(
+            request.actor_id
+        )
+        return UnreadCountResult(
+            unread_count=count,
+            action_required_count=action_required_count,
+        )

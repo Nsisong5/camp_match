@@ -10,7 +10,11 @@ from sqlalchemy.exc import IntegrityError
 from camp_match.modules.identity.adapters.persistence.models import AccountModel
 from camp_match.modules.identity.application.errors import IdentityAlreadyExists
 from camp_match.modules.identity.domain.entities import UserAccount
-from camp_match.modules.identity.domain.value_objects import AccountStatus, EmailAddress
+from camp_match.modules.identity.domain.value_objects import (
+    AccountStatus,
+    EmailAddress,
+    EmailVerificationSource,
+)
 
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,12 +32,17 @@ class SqlAlchemyIdentityRepository:
             email=str(account.email),
             password_hash=account.password_hash,
             status=account.status.name,
+            email_verified_at=account.email_verified_at,
+            email_verification_source=(
+                account.email_verification_source.value
+                if account.email_verification_source
+                else None
+            ),
             created_at=account.created_at,
             updated_at=account.created_at,
         )
         self._session.add(model)
         try:
-            # We flush to trigger the unique constraint check immediately
             await self._session.flush()
         except IntegrityError as e:
             if "identity_accounts_email_key" in str(e):
@@ -58,15 +67,29 @@ class SqlAlchemyIdentityRepository:
         model = result.scalar_one_or_none()
         if model:
             model.status = account.status.name
+            model.password_hash = account.password_hash
+            model.email_verified_at = account.email_verified_at
+            model.email_verification_source = (
+                account.email_verification_source.value
+                if account.email_verification_source
+                else None
+            )
             # updated_at handled by SQLAlchemy onupdate
 
     def _to_domain(self, model: AccountModel) -> UserAccount:
         from camp_match.shared_kernel.domain.identifiers import EntityId
 
+        source = (
+            EmailVerificationSource(model.email_verification_source)
+            if model.email_verification_source
+            else None
+        )
         return UserAccount(
             id=EntityId(model.id),
             email=EmailAddress(model.email),
             password_hash=model.password_hash,
             status=AccountStatus[model.status],
             created_at=model.created_at,
+            email_verified_at=model.email_verified_at,
+            email_verification_source=source,
         )

@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 
 from camp_match.modules.messaging.adapters.persistence.models import MessagingOutboxModel
 from camp_match.modules.messaging.domain.events import MessageCreated
@@ -95,3 +95,17 @@ class SqlAlchemyOutboxRepository:
 
     def _to_domain(self, model: MessagingOutboxModel) -> MessageCreated:
         return MessageCreated.from_payload(model.payload)
+
+    async def purge_dispatched(self, cutoff: datetime, limit: int) -> int:
+        subq = (
+            select(MessagingOutboxModel.id)
+            .where(
+                MessagingOutboxModel.dispatched_at.is_not(None),
+                MessagingOutboxModel.dispatched_at < cutoff,
+            )
+            .limit(limit)
+            .scalar_subquery()
+        )
+        stmt = delete(MessagingOutboxModel).where(MessagingOutboxModel.id.in_(subq))
+        res = await self._session.execute(stmt)
+        return int(res.rowcount)

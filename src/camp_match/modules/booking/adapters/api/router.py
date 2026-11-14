@@ -38,6 +38,12 @@ router = APIRouter(prefix="/api/v1/bookings", tags=["Bookings"])
 
 
 def _build_booking_response(booking) -> schemas.BookingResponseSchema:
+    closure_data = None
+    if booking.closure:
+        closure_data = {
+            "code": booking.closure.code,
+            "message": booking.closure.message,
+        }
     return schemas.BookingResponseSchema.model_validate({
         "id": booking.id.value,
         "student_id": booking.student_id.value,
@@ -61,6 +67,7 @@ def _build_booking_response(booking) -> schemas.BookingResponseSchema:
         "handover_offered_at": booking.handover_offered_at,
         "handover_offered_by": booking.handover_offered_by.value if booking.handover_offered_by else None,
         "handover_accepted_at": booking.handover_accepted_at,
+        "closure": closure_data,
     })
 
 

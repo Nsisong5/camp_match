@@ -5,12 +5,13 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import func, select, text, update
+from sqlalchemy import delete, func, or_, select, text, update
 
 from camp_match.modules.notification.adapters.persistence.models import NotificationModel
 from camp_match.modules.notification.application.ports.inbound import CreateOutcome
 from camp_match.modules.notification.domain.entities import Notification
 from camp_match.modules.notification.domain.value_objects import (
+    NotificationAction,
     NotificationCategory,
     NotificationTarget,
     NotificationType,
@@ -27,6 +28,7 @@ def _to_entity(model: NotificationModel) -> Notification:
             type=TargetType(model.target_type),
             id=EntityId(model.target_id),
         )
+    action = NotificationAction(model.action) if model.action else None
     return Notification(
         id=EntityId(model.id),
         recipient_id=EntityId(model.recipient_id),
@@ -41,6 +43,8 @@ def _to_entity(model: NotificationModel) -> Notification:
         created_at=model.created_at,
         latest_event_at=model.latest_event_at,
         read_at=model.read_at,
+        action=action,
+        resolved_at=model.resolved_at,
     )
 
 
@@ -49,17 +53,23 @@ class SqlAlchemyNotificationRepository:
         self.session = session
 
     async def create_or_collapse(self, notification: Notification) -> CreateOutcome:
-        if notification.group_key is not None and notification.type.is_collapsible:
+        if (
+            notification.group_key is not None
+            and notification.type.is_collapsible
+            and notification.action is None
+        ):
             stmt = text(
                 """
                 INSERT INTO notification_notifications (
                     id, recipient_id, type, category, title, body,
                     target_type, target_id, group_key, event_count,
-                    source_event_id, created_at, latest_event_at, read_at
+                    source_event_id, created_at, latest_event_at, read_at,
+                    action, resolved_at
                 ) VALUES (
                     :id, :recipient_id, :type, :category, :title, :body,
                     :target_type, :target_id, :group_key, 1,
-                    :source_event_id, :created_at, :latest_event_at, NULL
+                    :source_event_id, :created_at, :latest_event_at, NULL,
+                    NULL, NULL
                 )
                 ON CONFLICT (recipient_id, group_key)
                 WHERE group_key IS NOT NULL AND read_at IS NULL
@@ -129,6 +139,8 @@ class SqlAlchemyNotificationRepository:
                 created_at=notification.created_at,
                 latest_event_at=notification.latest_event_at,
                 read_at=notification.read_at,
+                action=notification.action.value if notification.action else None,
+                resolved_at=notification.resolved_at,
             )
             self.session.add(model)
             await self.session.flush()
@@ -139,6 +151,7 @@ class SqlAlchemyNotificationRepository:
         recipient_id: EntityId,
         unread_only: bool | None,
         category: NotificationCategory | None,
+        action_required: bool | None,
         page_request: PageRequest,
     ) -> Page[Notification]:
         stmt = select(NotificationModel).where(
@@ -148,6 +161,18 @@ class SqlAlchemyNotificationRepository:
             stmt = stmt.where(NotificationModel.read_at.is_(None))
         if category:
             stmt = stmt.where(NotificationModel.category == category.value)
+        if action_required is True:
+            stmt = stmt.where(
+                NotificationModel.action.is_not(None),
+                NotificationModel.resolved_at.is_(None),
+            )
+        elif action_required is False:
+            stmt = stmt.where(
+                or_(
+                    NotificationModel.action.is_(None),
+                    NotificationModel.resolved_at.is_not(None),
+                )
+            )
 
         # Count total
         count_stmt = select(func.count()).select_from(stmt.subquery())
@@ -183,6 +208,39 @@ class SqlAlchemyNotificationRepository:
         )
         res = await self.session.execute(stmt)
         return int(res.scalar_one())
+
+    async def count_action_required(self, recipient_id: EntityId) -> int:
+        stmt = select(func.count()).select_from(NotificationModel).where(
+            NotificationModel.recipient_id == recipient_id.value,
+            NotificationModel.action.is_not(None),
+            NotificationModel.resolved_at.is_(None),
+        )
+        res = await self.session.execute(stmt)
+        return int(res.scalar_one())
+
+    async def resolve_actions(
+        self,
+        target_type: TargetType,
+        target_id: EntityId,
+        actions: list[NotificationAction],
+        now: datetime,
+    ) -> int:
+        action_values = [a.value for a in actions]
+        if not action_values:
+            return 0
+        stmt = (
+            update(NotificationModel)
+            .where(
+                NotificationModel.target_type == target_type.value,
+                NotificationModel.target_id == target_id.value,
+                NotificationModel.action.in_(action_values),
+                NotificationModel.action.is_not(None),
+                NotificationModel.resolved_at.is_(None),
+            )
+            .values(resolved_at=now)
+        )
+        res = await self.session.execute(stmt)
+        return int(res.rowcount)
 
     async def get_by_id(
         self, notification_id: EntityId, recipient_id: EntityId
@@ -233,5 +291,23 @@ class SqlAlchemyNotificationRepository:
         if category:
             stmt = stmt.where(NotificationModel.category == category.value)
         stmt = stmt.values(read_at=now)
+        res = await self.session.execute(stmt)
+        return int(res.rowcount)
+
+    async def purge_read_notifications(self, cutoff: datetime, limit: int) -> int:
+        subq = (
+            select(NotificationModel.id)
+            .where(
+                NotificationModel.read_at.is_not(None),
+                NotificationModel.created_at < cutoff,
+                or_(
+                    NotificationModel.action.is_(None),
+                    NotificationModel.resolved_at.is_not(None),
+                ),
+            )
+            .limit(limit)
+            .scalar_subquery()
+        )
+        stmt = delete(NotificationModel).where(NotificationModel.id.in_(subq))
         res = await self.session.execute(stmt)
         return int(res.rowcount)

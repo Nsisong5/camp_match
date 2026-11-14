@@ -14,8 +14,8 @@ _TEMPLATES: dict[NotificationType, tuple[str, str]] = {
         "Your booking has been confirmed.",
     ),
     NotificationType.BOOKING_CONFIRMED_PROVIDER: (
-        "Booking confirmed",
-        "A booking on one of your listings has been confirmed.",
+        "Action needed: arrange handover",
+        "A booking on one of your listings is confirmed and paid. Arrange access with the student, then confirm the handover in the app.",
     ),
     NotificationType.BOOKING_CANCELLED_STUDENT: (
         "Booking cancelled",
@@ -64,6 +64,54 @@ _TEMPLATES: dict[NotificationType, tuple[str, str]] = {
     NotificationType.SAFETY_RESTRICTION_LIFTED: (
         "Restriction lifted",
         "A safety restriction on your account has been lifted.",
+    ),
+    NotificationType.BOOKING_CREATED_STUDENT: (
+        "Complete your payment",
+        "Your booking is on hold. Complete payment before the hold expires to keep it.",
+    ),
+    NotificationType.HANDOVER_OFFERED_STUDENT: (
+        "Confirm you have access",
+        "Your host says access to your place is ready. Confirm in the app once you have it.",
+    ),
+    NotificationType.HANDOVER_ACCEPTED_PROVIDER: (
+        "Handover confirmed",
+        "The student confirmed they received access.",
+    ),
+    NotificationType.BOOKING_HANDOVER_REMINDER_PROVIDER: (
+        "Reminder: confirm handover",
+        "A paid booking on one of your listings is still waiting for you to confirm handover.",
+    ),
+    NotificationType.BOOKING_ACCEPTANCE_REMINDER_STUDENT: (
+        "Reminder: confirm access",
+        "Your host offered access to your place. Please confirm in the app once you have it.",
+    ),
+    NotificationType.BOOKING_INVALIDATED_STUDENT: (
+        "Booking cancelled",
+        "Your booking was cancelled because the listing is no longer available. If you already paid, our team will review your payment.",
+    ),
+    NotificationType.BOOKING_INVALIDATED_PROVIDER: (
+        "Bookings cancelled",
+        "Bookings on one of your suspended listings were cancelled.",
+    ),
+    NotificationType.HOUSING_LISTING_SUSPENDED: (
+        "Listing suspended",
+        "One of your listings has been suspended and is no longer visible. Existing bookings on it are being cancelled. Contact support if you have questions.",
+    ),
+    NotificationType.HOUSING_LISTING_SUSPENSION_LIFTED: (
+        "Listing suspension lifted",
+        "A suspension on one of your listings was lifted. It is not live yet — review it and publish it again when you're ready.",
+    ),
+    NotificationType.PAYMENT_FAILED_STUDENT: (
+        "Payment failed",
+        "Your payment didn't go through. If your booking hold hasn't expired, you can try again.",
+    ),
+    NotificationType.PAYMENT_LATE_STUDENT: (
+        "Payment received late",
+        "We received your payment after your booking hold expired. Our team will review it.",
+    ),
+    NotificationType.PAYMENT_REVIEW_STUDENT: (
+        "Payment under review",
+        "There was a problem confirming your payment. Our team will review it.",
     ),
 }
 

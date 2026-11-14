@@ -96,3 +96,31 @@ class AdminAuditEventModel(Base):
             postgresql_where=(event_type == "ACTION_REQUESTED"),
         ),
     )
+
+
+class AdminRoleGrantRequestModel(Base):
+    __tablename__ = "admin_role_grant_requests"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    target_identity_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    role: Mapped[str] = mapped_column(nullable=False)
+    requested_by: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    reason: Mapped[str] = mapped_column(nullable=False)
+    status: Mapped[str] = mapped_column(nullable=False, default="PENDING")
+    decided_by: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    decision_reason: Mapped[str | None] = mapped_column(nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    __table_args__ = (
+        CheckConstraint("status IN ('PENDING', 'APPROVED', 'REJECTED')", name="check_role_request_status"),
+        CheckConstraint("role = 'OPERATIONS'", name="check_role_request_role"),
+        Index(
+            "ix_admin_role_grant_requests_pending",
+            "target_identity_id",
+            "role",
+            unique=True,
+            postgresql_where=(status == "PENDING"),
+        ),
+    )

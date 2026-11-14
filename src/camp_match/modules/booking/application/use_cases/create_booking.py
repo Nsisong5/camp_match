@@ -119,17 +119,16 @@ class CreateBookingUseCase:
         try:
             async with self.uow:
                 saved = await self.booking_repo.add(booking)
+                event = BookingCreated(
+                    event_id=EntityId.new(),
+                    occurred_at=now,
+                    booking_id=saved.id,
+                    student_id=saved.student_id,
+                    property_id=saved.property_id,
+                    listing_id=saved.listing_id,
+                )
+                self.uow.add_event(event)
                 await self.uow.commit()
-
-            event = BookingCreated(
-                event_id=EntityId.new(),
-                occurred_at=now,
-                booking_id=saved.id,
-                student_id=saved.student_id,
-                property_id=saved.property_id,
-                listing_id=saved.listing_id,
-            )
-            await publish_best_effort(self.event_bus, event, logger)
         except Exception as e:
             logger.error(
                 "booking_persistence_failed_compensating_reservation",

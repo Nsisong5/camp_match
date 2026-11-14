@@ -163,3 +163,40 @@ class NotificationRecovery(Protocol):
 class SafetyRecovery(Protocol):
     async def requeue_failed(self) -> int:
         ...
+
+
+class PlatformRuntimeProvider(Protocol):
+    async def get_job_statuses(self) -> list[Any]:
+        ...
+
+    async def get_outbox_stats(self) -> dict[str, Any]:
+        ...
+
+
+class PlatformRecovery(Protocol):
+    async def requeue_dead(self, actor_id: EntityId) -> int:
+        ...
+
+
+class RoleGrantRequestRepository(Protocol):
+    async def add(self, request: Any) -> None:
+        ...
+
+    async def get(self, request_id: EntityId) -> Any | None:
+        ...
+
+    async def get_pending_duplicate(self, target_identity_id: EntityId, role: str) -> Any | None:
+        ...
+
+    async def list(self, page_request: PageRequest | None = None) -> Page[Any]:
+        ...
+
+    async def update_decision(
+        self,
+        request_id: EntityId,
+        status: str,
+        decided_by: EntityId,
+        decided_at: datetime,
+        decision_reason: str | None = None,
+    ) -> bool:
+        ...

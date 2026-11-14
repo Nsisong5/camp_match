@@ -96,12 +96,15 @@ class ReverseEnforcementUseCase:
                 actor_id=request.actor_id,
                 details={"action_id": str(action.id), "status": action.status.value},
             )
-            await self._uow.commit()
-
-        if action.status == EnforcementStatus.REVERSED:
-            try:
-                await self._event_bus.publish(
-                    SafetyUpdatePublished(report_id=action.id, update_type=f"{action.action_type.value}_REVERSED")
+            if action.status == EnforcementStatus.REVERSED and action.action_type.value != "LISTING_SUSPENSION":
+                case = await self._case_repo.get(action.case_id)
+                recipient = case.reporter_id if case else request.actor_id
+                self._uow.add_event(
+                    SafetyUpdatePublished(
+                        recipient_id=recipient,
+                        kind=SafetyUpdateKind.RESTRICTION_LIFTED,
+                        reference_type="ENFORCEMENT",
+                        reference_id=action.id,
+                    )
                 )
-            except Exception:
-                pass
+            await self._uow.commit()

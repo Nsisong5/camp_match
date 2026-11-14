@@ -7,7 +7,10 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
-from camp_match.modules.notification.domain.value_objects import NotificationCategory
+from camp_match.modules.notification.domain.value_objects import (
+    NotificationAction,
+    NotificationCategory,
+)
 
 T = TypeVar("T")
 
@@ -33,6 +36,9 @@ class NotificationResponse(BaseSchema):
     read_at: datetime | None
     created_at: datetime
     latest_event_at: datetime
+    action: NotificationAction | None
+    action_required: bool
+    resolved_at: datetime | None
 
 
 class PageSchema[T](BaseSchema):
@@ -44,6 +50,7 @@ class PageSchema[T](BaseSchema):
 
 class UnreadCountResponse(BaseSchema):
     unread_count: int
+    action_required_count: int
 
 
 class ReadAllRequest(BaseSchema):

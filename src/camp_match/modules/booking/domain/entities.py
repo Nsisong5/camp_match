@@ -3,7 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
-from camp_match.modules.booking.domain.value_objects import BookingStatus, PriceSnapshot
+from camp_match.modules.booking.domain.value_objects import (
+    BookingStatus,
+    Closure,
+    ClosureCode,
+    PriceSnapshot,
+)
 from camp_match.shared_kernel.domain.clock import Clock
 from camp_match.shared_kernel.domain.identifiers import EntityId
 
@@ -28,6 +33,19 @@ class Booking:
     handover_offered_at: datetime | None = None
     handover_offered_by: EntityId | None = None
     handover_accepted_at: datetime | None = None
+    closure_code: str | None = None
+    handover_reminder_sent_at: datetime | None = None
+    acceptance_reminder_sent_at: datetime | None = None
+
+    @property
+    def closure(self) -> Closure | None:
+        if self.status in (BookingStatus.CANCELLED, BookingStatus.EXPIRED) and self.closure_code:
+            try:
+                code_enum = ClosureCode(self.closure_code)
+                return Closure(code=code_enum.value, message=code_enum.message)
+            except Exception:
+                return Closure(code=self.closure_code, message="Cancelled.")
+        return None
 
     def is_hold_expired(self, clock: Clock) -> bool:
         return self.status == BookingStatus.AWAITING_PAYMENT and self.expires_at < clock.now()

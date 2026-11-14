@@ -263,3 +263,19 @@ class OverviewSection:
                 raise DomainError(
                     "NOT_AUTHORIZED section cannot have data or reason_code."
                 )
+
+
+@dataclass(frozen=True)
+class RoleGrantRequest:
+    id: EntityId
+    target_identity_id: EntityId
+    role: str
+    requested_by: EntityId
+    reason: str
+    status: str  # "PENDING", "APPROVED", "REJECTED"
+    decided_by: EntityId | None = None
+    decided_at: datetime | None = None
+    decision_reason: str | None = None
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    expires_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+

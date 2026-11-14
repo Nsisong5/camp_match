@@ -1,5 +1,8 @@
+"""Housing module dependencies."""
+
 from __future__ import annotations
 
+import importlib
 from typing import Annotated
 
 from fastapi import Depends
@@ -10,8 +13,15 @@ from camp_match.modules.housing.adapters.persistence.repository import (
     SqlAlchemyPropertyRepository,
     SqlAlchemyUnitRepository,
 )
-from camp_match.modules.housing.adapters.profile.profile_provider import InProcessProfileProvider
-from camp_match.modules.housing.adapters.security.authorization import InProcessAuthorizationService
+from camp_match.modules.housing.adapters.profile.profile_provider import (
+    InProcessProfileProvider,
+)
+from camp_match.modules.housing.adapters.saved.saved_state_provider import (
+    HousingSavedStateProviderAdapter,
+)
+from camp_match.modules.housing.adapters.security.authorization import (
+    InProcessAuthorizationService,
+)
 from camp_match.modules.housing.adapters.university_location.university_location_provider import (
     InProcessUniversityLocationProvider,
 )
@@ -20,30 +30,40 @@ from camp_match.modules.housing.application.ports.outbound import (
     PropertyRepository,
     UnitRepository,
 )
-from camp_match.modules.profile.adapters.persistence.repository import SqlAlchemyProfileRepository
+from camp_match.modules.profile.adapters.persistence.repository import (
+    SqlAlchemyProfileRepository,
+)
 from camp_match.modules.profile.application.use_cases.get_current_user_profile import (
     GetCurrentUserProfileUseCase,
 )
-from camp_match.modules.security.adapters.persistence.repository import SqlAlchemyRoleRepository
+from camp_match.modules.security.adapters.persistence.repository import (
+    SqlAlchemyRoleRepository,
+)
 from camp_match.modules.security.application.use_cases.authorize_action import (
     AuthorizeActionUseCase,
 )
 from camp_match.modules.university_location.adapters.persistence.repository import (
     SqlAlchemyCampusRepository,
 )
-from camp_match.modules.university_location.application.use_cases.get_campus import GetCampusUseCase
+from camp_match.modules.university_location.application.use_cases.get_campus import (
+    GetCampusUseCase,
+)
 from camp_match.platform.db.session import get_db_session
 from camp_match.platform.db.unit_of_work import SqlAlchemyUnitOfWork
 from camp_match.shared_kernel.application.unit_of_work import UnitOfWork
 
 
-def get_university_location_provider(session: Annotated[AsyncSession, Depends(get_db_session)]) -> InProcessUniversityLocationProvider:
+def get_university_location_provider(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> InProcessUniversityLocationProvider:
     campus_repo = SqlAlchemyCampusRepository(session)
     get_campus_uc = GetCampusUseCase(campus_repo)
     return InProcessUniversityLocationProvider(get_campus_uc)
 
 
-def get_profile_provider(session: Annotated[AsyncSession, Depends(get_db_session)]) -> InProcessProfileProvider:
+def get_profile_provider(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> InProcessProfileProvider:
     profile_repo = SqlAlchemyProfileRepository(session)
     profile_uc = GetCurrentUserProfileUseCase(profile_repo)
     return InProcessProfileProvider(profile_uc)
@@ -51,24 +71,48 @@ def get_profile_provider(session: Annotated[AsyncSession, Depends(get_db_session
 
 def get_auth_service(
     session: Annotated[AsyncSession, Depends(get_db_session)],
-    profile_provider: Annotated[InProcessProfileProvider, Depends(get_profile_provider)],
+    profile_provider: Annotated[
+        InProcessProfileProvider, Depends(get_profile_provider)
+    ],
 ) -> InProcessAuthorizationService:
     role_repo = SqlAlchemyRoleRepository(session)
     auth_uc = AuthorizeActionUseCase(role_repo, profile_provider)
     return InProcessAuthorizationService(auth_uc)
 
 
-def get_property_repository(session: Annotated[AsyncSession, Depends(get_db_session)]) -> PropertyRepository:
+def get_property_repository(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> PropertyRepository:
     return SqlAlchemyPropertyRepository(session)
 
 
-def get_unit_repository(session: Annotated[AsyncSession, Depends(get_db_session)]) -> UnitRepository:
+def get_unit_repository(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> UnitRepository:
     return SqlAlchemyUnitRepository(session)
 
 
-def get_listing_repository(session: Annotated[AsyncSession, Depends(get_db_session)]) -> ListingRepository:
+def get_listing_repository(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> ListingRepository:
     return SqlAlchemyListingRepository(session)
 
 
-def get_uow(session: Annotated[AsyncSession, Depends(get_db_session)]) -> UnitOfWork:
+def get_saved_state_provider(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> HousingSavedStateProviderAdapter:
+    saved_repo_mod = importlib.import_module(
+        "camp_match.modules.saved_listings.adapters.persistence.repository"
+    )
+    saved_uc_mod = importlib.import_module(
+        "camp_match.modules.saved_listings.application.use_cases.get_saved_state"
+    )
+    saved_repo = saved_repo_mod.SqlAlchemySavedListingRepository(session)
+    get_saved_state_uc = saved_uc_mod.GetSavedStateUseCase(saved_repo)
+    return HousingSavedStateProviderAdapter(get_saved_state_uc)
+
+
+def get_uow(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> UnitOfWork:
     return SqlAlchemyUnitOfWork(session)

@@ -56,10 +56,8 @@ class ExpireHoldsUseCase:
                 continue
 
             async with self.uow:
-                updated = await self.booking_repo.expire(booking.id)
+                updated = await self.booking_repo.expire(booking.id, closure_code="HOLD_EXPIRED")
                 if updated:
-                    await self.uow.commit()
-                    expired_count += 1
                     event = BookingExpired(
                         event_id=EntityId.new(),
                         occurred_at=now,
@@ -68,7 +66,9 @@ class ExpireHoldsUseCase:
                         property_id=booking.property_id,
                         listing_id=booking.listing_id,
                     )
-                    await publish_best_effort(self.event_bus, event, logger)
+                    self.uow.add_event(event)
+                    await self.uow.commit()
+                    expired_count += 1
                     logger.info("booking_hold_expired", booking_id=booking.id)
 
         return ExpireHoldsResponse(expired_count=expired_count)

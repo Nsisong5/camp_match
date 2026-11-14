@@ -17,6 +17,9 @@ class PropertyRepository(Protocol):
     async def get_by_id(self, property_id: EntityId) -> Property | None:
         ...
 
+    async def list_by_ids(self, property_ids: list[EntityId]) -> list[Property]:
+        ...
+
     async def list_by_provider(self, provider_id: EntityId, page: PageRequest) -> Page[Property]:
         ...
 
@@ -29,6 +32,9 @@ class UnitRepository(Protocol):
         ...
 
     async def get_by_id(self, unit_id: EntityId) -> Unit | None:
+        ...
+
+    async def list_by_ids(self, unit_ids: list[EntityId]) -> list[Unit]:
         ...
 
     async def update(self, unit: Unit) -> None:
@@ -46,6 +52,9 @@ class ListingRepository(Protocol):
         ...
 
     async def get_by_id(self, listing_id: EntityId) -> Listing | None:
+        ...
+
+    async def list_by_ids(self, listing_ids: list[EntityId]) -> list[Listing]:
         ...
 
     async def update(self, listing: Listing) -> None:
@@ -74,6 +83,30 @@ class ListingRepository(Protocol):
     ) -> Page[Listing]:
         ...
 
+    async def list_by_provider_and_status(
+        self,
+        provider_id: EntityId,
+        statuses: list[str],
+        limit: int,
+    ) -> list[Listing]:
+        ...
+
+    async def list_suspended_by_provider_and_reason(
+        self,
+        provider_id: EntityId,
+        reason: str,
+        reference_id: EntityId,
+        limit: int,
+    ) -> list[Listing]:
+        ...
+
+    async def list_suspended_ids(
+        self,
+        limit: int,
+        after_id: EntityId | None,
+    ) -> list[EntityId]:
+        ...
+
 
 class ProfileProvider(Protocol):
     async def get_profile_type(self, identity_id: EntityId) -> str | None:
@@ -92,4 +125,11 @@ class AuthorizationService(Protocol):
         permission: Permission,
         resource_owner_id: EntityId | None = None,
     ) -> None:
+        ...
+
+
+class SavedStateProvider(Protocol):
+    async def get_saved_state(
+        self, viewer_id: EntityId | None, listing_ids: list[EntityId]
+    ) -> set[EntityId]:
         ...

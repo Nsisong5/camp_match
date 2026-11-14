@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
+from enum import Enum, StrEnum
 
 
 class Currency(Enum):
@@ -25,6 +25,17 @@ class PaymentAttemptStatus(Enum):
     FAILED = "FAILED"
     EXPIRED = "EXPIRED"
     CANCELLED = "CANCELLED"
+
+
+class WebhookProcessingOutcome(StrEnum):
+    PROCESSED_CONFIRMED = "PROCESSED_CONFIRMED"
+    PROCESSED_NO_CHANGE = "PROCESSED_NO_CHANGE"
+    IGNORED_DUPLICATE = "IGNORED_DUPLICATE"
+    REJECTED_INVALID_SIGNATURE = "REJECTED_INVALID_SIGNATURE"
+    REJECTED_AMOUNT_MISMATCH = "REJECTED_AMOUNT_MISMATCH"
+    UNCORRELATED = "UNCORRELATED"
+    LATE_SUCCESS_FLAGGED = "LATE_SUCCESS_FLAGGED"
+    PROVIDER_REPORTED_FAILURE = "PROVIDER_REPORTED_FAILURE"
 
 
 class FundDispositionStatus(Enum):

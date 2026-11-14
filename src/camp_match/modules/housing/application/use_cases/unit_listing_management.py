@@ -1,5 +1,7 @@
-"""Module Housing: unit_listing_management.py"""
-"""Unit and listing management use cases."""
+from __future__ import annotations
+
+from datetime import UTC, datetime
+from typing import Any
 
 from camp_match.modules.housing.application.errors import (
     InvalidListingStateTransition,
@@ -12,12 +14,12 @@ from camp_match.modules.housing.application.ports.inbound import (
     ArchiveListingCommand,
     CreateListingCommand,
     CreateUnitCommand,
+    LiftListingSuspensionCommand,
     PublishListingCommand,
+    SuspendListingForSafetyCommand,
     UnpublishListingCommand,
     UpdateListingCommand,
     UpdateUnitCommand,
-    SuspendListingForSafetyCommand,
-    LiftListingSuspensionCommand,
 )
 from camp_match.modules.housing.application.ports.outbound import (
     AuthorizationService,
@@ -26,6 +28,10 @@ from camp_match.modules.housing.application.ports.outbound import (
     UnitRepository,
 )
 from camp_match.modules.housing.domain.entities import Listing, Unit
+from camp_match.modules.housing.domain.events import (
+    ListingSuspended,
+    ListingSuspensionLifted,
+)
 from camp_match.modules.housing.domain.value_objects import (
     BillingPeriod,
     Currency,
@@ -57,7 +63,9 @@ class CreateUnitUseCase:
         if not prop:
             raise PropertyNotFound(f"Property {command.property_id} not found")
         await self.auth.authorize(
-            command.identity_id, Permission.HOUSING_MANAGE, resource_owner_id=prop.provider_id
+            command.identity_id,
+            Permission.HOUSING_MANAGE,
+            resource_owner_id=prop.provider_id,
         )
         unit = Unit(
             id=EntityId.new(),
@@ -90,20 +98,24 @@ class UpdateUnitUseCase:
         unit = await self.unit_repo.get_by_id(command.unit_id)
         if not unit:
             raise UnitNotFound(f"Unit {command.unit_id} not found")
-        
+
         prop = await self.prop_repo.get_by_id(unit.property_id)
         if not prop:
             raise PropertyNotFound(f"Property {unit.property_id} not found")
-        
+
         await self.auth.authorize(
-            command.identity_id, Permission.HOUSING_MANAGE, resource_owner_id=prop.provider_id
+            command.identity_id,
+            Permission.HOUSING_MANAGE,
+            resource_owner_id=prop.provider_id,
         )
-        
+
         if command.label:
             unit.label = command.label
         if command.total_capacity is not None:
             if command.total_capacity < unit.occupied_count:
-                raise InventoryUnavailable("Cannot decrease capacity below occupied count")
+                raise InventoryUnavailable(
+                    "Cannot decrease capacity below occupied count"
+                )
             unit.total_capacity = command.total_capacity
         if command.is_furnished is not None:
             unit.is_furnished = command.is_furnished
@@ -111,7 +123,7 @@ class UpdateUnitUseCase:
             unit.has_private_bathroom = command.has_private_bathroom
         if command.has_kitchen is not None:
             unit.has_kitchen = command.has_kitchen
-            
+
         await self.unit_repo.update(unit)
         await self.uow.commit()
 
@@ -135,13 +147,17 @@ class CreateListingUseCase:
         prop = await self.prop_repo.get_by_id(command.property_id)
         if not prop:
             raise PropertyNotFound(f"Property {command.property_id} not found")
-        
+
         unit = await self.unit_repo.get_by_id(command.unit_id)
         if not unit or unit.property_id != command.property_id:
-            raise UnitNotFound(f"Unit {command.unit_id} not found in property {command.property_id}")
-            
+            raise UnitNotFound(
+                f"Unit {command.unit_id} not found in property {command.property_id}"
+            )
+
         await self.auth.authorize(
-            command.identity_id, Permission.HOUSING_MANAGE, resource_owner_id=prop.provider_id
+            command.identity_id,
+            Permission.HOUSING_MANAGE,
+            resource_owner_id=prop.provider_id,
         )
 
         existing = await self.listing_repo.get_by_unit_id(command.unit_id)
@@ -182,17 +198,21 @@ class UpdateListingUseCase:
         listing = await self.listing_repo.get_by_id(command.listing_id)
         if not listing:
             raise ListingNotFound(f"Listing {command.listing_id} not found")
-        
+
         prop = await self.prop_repo.get_by_id(listing.property_id)
         if not prop:
             raise PropertyNotFound(f"Property {listing.property_id} not found")
-        
+
         await self.auth.authorize(
-            command.identity_id, Permission.HOUSING_MANAGE, resource_owner_id=prop.provider_id
+            command.identity_id,
+            Permission.HOUSING_MANAGE,
+            resource_owner_id=prop.provider_id,
         )
 
         if listing.status in (ListingStatus.ARCHIVED, ListingStatus.SUSPENDED):
-            raise InvalidListingStateTransition("Cannot update an archived or suspended listing")
+            raise InvalidListingStateTransition(
+                "Cannot update an archived or suspended listing"
+            )
 
         if command.title:
             listing.title = command.title
@@ -202,9 +222,9 @@ class UpdateListingUseCase:
             listing.price = Price(
                 amount_kobo=command.price_amount_kobo,
                 currency=listing.price.currency,
-                period=listing.price.period
+                period=listing.price.period,
             )
-        
+
         await self.listing_repo.update(listing)
         await self.uow.commit()
 
@@ -218,6 +238,8 @@ class GetListingUseCase:
         if not listing:
             raise ListingNotFound(f"Listing {listing_id} not found")
         return listing
+
+
 class ListActiveListingsUseCase:
     def __init__(self, repo: ListingRepository):
         self.repo = repo
@@ -226,7 +248,7 @@ class ListActiveListingsUseCase:
         self,
         campus_id: EntityId | None,
         property_type: PropertyType | None,
-        page: PageRequest
+        page: PageRequest,
     ) -> Page[Listing]:
         return await self.repo.list_active(campus_id, property_type, page)
 
@@ -261,35 +283,31 @@ class PublishListingUseCase:
         listing = await self.listing_repo.get_by_id(command.listing_id)
         if not listing:
             raise ListingNotFound(f"Listing {command.listing_id} not found")
-            
+
         if listing.status == ListingStatus.SUSPENDED:
             raise InvalidListingStateTransition("Cannot modify a suspended listing")
-        
+
         prop = await self.prop_repo.get_by_id(listing.property_id)
         if not prop:
             raise PropertyNotFound(f"Property {listing.property_id} not found")
-        
-        # Logging to debug identity mismatch
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.info("authorizing_publish_listing", 
-                    identity=str(command.identity_id), 
-                    owner=str(prop.provider_id),
-                    match=(command.identity_id == prop.provider_id))
-        
+
         await self.auth.authorize(
-            command.identity_id, Permission.HOUSING_MANAGE, resource_owner_id=prop.provider_id
+            command.identity_id,
+            Permission.HOUSING_MANAGE,
+            resource_owner_id=prop.provider_id,
         )
-        
+
         unit = await self.unit_repo.get_by_id(listing.unit_id)
         if not unit:
             raise UnitNotFound(f"Unit {listing.unit_id} not found")
-            
+
         if listing.price.amount_kobo <= 0:
-            raise InvalidListingStateTransition("Listing must have a price > 0 to publish")
+            raise InvalidListingStateTransition(
+                "Listing must have a price > 0 to publish"
+            )
         if unit.available_count <= 0:
             raise InvalidListingStateTransition("Listing unit has no availability")
-            
+
         listing.transition_to(ListingStatus.PUBLISHED)
         await self.listing_repo.update(listing)
         await self.uow.commit()
@@ -312,18 +330,20 @@ class UnpublishListingUseCase:
         listing = await self.listing_repo.get_by_id(command.listing_id)
         if not listing:
             raise ListingNotFound(f"Listing {command.listing_id} not found")
-            
+
         if listing.status == ListingStatus.SUSPENDED:
             raise InvalidListingStateTransition("Cannot modify a suspended listing")
-        
+
         prop = await self.prop_repo.get_by_id(listing.property_id)
         if not prop:
             raise PropertyNotFound(f"Property {listing.property_id} not found")
-        
+
         await self.auth.authorize(
-            command.identity_id, Permission.HOUSING_MANAGE, resource_owner_id=prop.provider_id
+            command.identity_id,
+            Permission.HOUSING_MANAGE,
+            resource_owner_id=prop.provider_id,
         )
-        
+
         listing.transition_to(ListingStatus.UNAVAILABLE)
         await self.listing_repo.update(listing)
         await self.uow.commit()
@@ -346,18 +366,20 @@ class ArchiveListingUseCase:
         listing = await self.listing_repo.get_by_id(command.listing_id)
         if not listing:
             raise ListingNotFound(f"Listing {command.listing_id} not found")
-            
+
         if listing.status == ListingStatus.SUSPENDED:
             raise InvalidListingStateTransition("Cannot modify a suspended listing")
-            
+
         prop = await self.prop_repo.get_by_id(listing.property_id)
         if not prop:
             raise PropertyNotFound(f"Property {listing.property_id} not found")
-        
+
         await self.auth.authorize(
-            command.identity_id, Permission.HOUSING_MANAGE, resource_owner_id=prop.provider_id
+            command.identity_id,
+            Permission.HOUSING_MANAGE,
+            resource_owner_id=prop.provider_id,
         )
-        
+
         listing.transition_to(ListingStatus.ARCHIVED)
         await self.listing_repo.update(listing)
         await self.uow.commit()
@@ -367,29 +389,78 @@ class SuspendListingForSafetyUseCase:
     def __init__(
         self,
         listing_repo: ListingRepository,
+        prop_repo: PropertyRepository,
         auth: AuthorizationService,
         uow: UnitOfWork,
+        clock: Any,
     ):
         self.listing_repo = listing_repo
+        self.prop_repo = prop_repo
         self.auth = auth
         self.uow = uow
+        self.clock = clock
 
     async def __call__(self, command: SuspendListingForSafetyCommand) -> None:
-        await self.auth.authorize(command.identity_id, Permission.HOUSING_SAFETY_SUSPEND)
-        
+        await self.auth.authorize(
+            command.identity_id, Permission.HOUSING_SAFETY_SUSPEND
+        )
+
         listing = await self.listing_repo.get_by_id(command.listing_id)
         if not listing:
             raise ListingNotFound(f"Listing {command.listing_id} not found")
-            
+
+        prop = await self.prop_repo.get_by_id(listing.property_id)
+        owner_id = prop.provider_id if prop else listing.property_id
+        reason_code = getattr(command, "reason_code", "SAFETY_ENFORCEMENT")
+        now = self.clock.now() if self.clock else datetime.now(UTC)
+
         if listing.status == ListingStatus.SUSPENDED:
+            if listing.suspension_reason == "SAFETY_ENFORCEMENT":
+                return
+            if (
+                listing.suspension_reason != "SAFETY_ENFORCEMENT"
+                and reason_code == "SAFETY_ENFORCEMENT"
+            ):
+                listing.suspension_reason = "SAFETY_ENFORCEMENT"
+                listing.suspension_reference = command.source_reference
+                await self.listing_repo.update(listing)
+
+                event = ListingSuspended(
+                    event_id=EntityId.new(),
+                    occurred_at=now,
+                    listing_id=listing.id,
+                    property_id=listing.property_id,
+                    owner_id=owner_id,
+                    reason_code="SAFETY_ENFORCEMENT",
+                    reference_id=command.source_reference,
+                )
+                self.uow.add_event(event)
+                await self.uow.commit()
             return
-            
-        if listing.status not in (ListingStatus.PUBLISHED, ListingStatus.UNAVAILABLE):
-            raise InvalidListingStateTransition(f"Cannot suspend listing in status {listing.status}")
-            
+
+        if listing.status not in (
+            ListingStatus.PUBLISHED,
+            ListingStatus.UNAVAILABLE,
+        ):
+            raise InvalidListingStateTransition(
+                f"Cannot suspend listing in status {listing.status}"
+            )
+
         listing.transition_to(ListingStatus.SUSPENDED)
+        listing.suspension_reason = reason_code
         listing.suspension_reference = command.source_reference
         await self.listing_repo.update(listing)
+
+        event = ListingSuspended(
+            event_id=EntityId.new(),
+            occurred_at=now,
+            listing_id=listing.id,
+            property_id=listing.property_id,
+            owner_id=owner_id,
+            reason_code=reason_code,
+            reference_id=command.source_reference,
+        )
+        self.uow.add_event(event)
         await self.uow.commit()
 
 
@@ -397,26 +468,51 @@ class LiftListingSuspensionUseCase:
     def __init__(
         self,
         listing_repo: ListingRepository,
+        prop_repo: PropertyRepository,
         auth: AuthorizationService,
         uow: UnitOfWork,
+        clock: Any,
     ):
         self.listing_repo = listing_repo
+        self.prop_repo = prop_repo
         self.auth = auth
         self.uow = uow
+        self.clock = clock
 
     async def __call__(self, command: LiftListingSuspensionCommand) -> None:
-        await self.auth.authorize(command.identity_id, Permission.HOUSING_SAFETY_SUSPEND)
-        
+        await self.auth.authorize(
+            command.identity_id, Permission.HOUSING_SAFETY_SUSPEND
+        )
+
         listing = await self.listing_repo.get_by_id(command.listing_id)
         if not listing:
             raise ListingNotFound(f"Listing {command.listing_id} not found")
-            
+
+        prop = await self.prop_repo.get_by_id(listing.property_id)
+        owner_id = prop.provider_id if prop else listing.property_id
+        now = self.clock.now() if self.clock else datetime.now(UTC)
+
         if listing.status == ListingStatus.SUSPENDED:
             listing.transition_to(ListingStatus.UNAVAILABLE)
+            listing.suspension_reason = None
             listing.suspension_reference = None
             await self.listing_repo.update(listing)
+
+            event = ListingSuspensionLifted(
+                event_id=EntityId.new(),
+                occurred_at=now,
+                listing_id=listing.id,
+                property_id=listing.property_id,
+                owner_id=owner_id,
+            )
+            self.uow.add_event(event)
             await self.uow.commit()
         else:
-            if listing.suspension_reference is not None and command.source_reference is not None and listing.suspension_reference != command.source_reference:
-                raise InvalidListingStateTransition("Suspension reference mismatch")
-            # Success no-op
+            if (
+                listing.suspension_reference is not None
+                and command.source_reference is not None
+                and listing.suspension_reference != command.source_reference
+            ):
+                raise InvalidListingStateTransition(
+                    "Suspension reference mismatch"
+                )

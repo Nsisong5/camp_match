@@ -46,6 +46,10 @@ class NotificationModel(Base):
     read_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    action: Mapped[str | None] = mapped_column(String, nullable=True)
+    resolved_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     __table_args__ = (
         UniqueConstraint(
@@ -63,6 +67,11 @@ class NotificationModel(Base):
             ),
         ),
         Index(
+            "ix_notifications_action_required",
+            "recipient_id",
+            postgresql_where=text("action IS NOT NULL AND resolved_at IS NULL"),
+        ),
+        Index(
             "ix_notification_list",
             "recipient_id",
             text("latest_event_at DESC"),
@@ -74,7 +83,7 @@ class NotificationModel(Base):
             postgresql_where=text("read_at IS NULL"),
         ),
         CheckConstraint(
-            "category IN ('MESSAGE', 'BOOKING', 'VERIFICATION')",
+            "category IN ('MESSAGE', 'BOOKING', 'VERIFICATION', 'SAFETY', 'HOUSING', 'PAYMENT')",
             name="check_notification_category",
         ),
         CheckConstraint(
@@ -83,9 +92,22 @@ class NotificationModel(Base):
             "'booking.confirmed.student', 'booking.confirmed.provider', "
             "'booking.cancelled.student', 'booking.cancelled.provider', "
             "'booking.expired.student', 'verification.verified', "
-            "'verification.rejected', 'verification.revoked'"
+            "'verification.rejected', 'verification.revoked', "
+            "'safety.report_received', 'safety.report_reviewed', "
+            "'safety.warning_issued', 'safety.communication_restricted', "
+            "'safety.listing_suspended', 'safety.restriction_lifted', "
+            "'booking.created.student', 'handover.offered.student', "
+            "'handover.accepted.provider', 'booking.handover_reminder.provider', "
+            "'booking.acceptance_reminder.student', 'booking.invalidated.student', "
+            "'booking.invalidated.provider', 'housing.listing_suspended', "
+            "'housing.listing_suspension_lifted', 'payment.failed.student', "
+            "'payment.late.student', 'payment.review.student'"
             ")",
             name="check_notification_type",
+        ),
+        CheckConstraint(
+            "action IS NULL OR action IN ('COMPLETE_PAYMENT', 'OFFER_HANDOVER', 'ACCEPT_HANDOVER')",
+            name="check_notification_action",
         ),
         CheckConstraint(
             "event_count >= 1", name="check_notification_event_count"
@@ -97,7 +119,7 @@ class NotificationModel(Base):
         ),
         CheckConstraint(
             "target_type IS NULL OR target_type IN "
-            "('CONVERSATION', 'BOOKING', 'VERIFICATION_CASE')",
+            "('CONVERSATION', 'BOOKING', 'VERIFICATION_CASE', 'SAFETY_REPORT', 'LISTING')",
             name="check_notification_target_type",
         ),
     )

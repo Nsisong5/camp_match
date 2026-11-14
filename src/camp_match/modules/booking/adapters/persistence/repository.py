@@ -47,6 +47,9 @@ class SqlAlchemyBookingRepository:
             handover_offered_at=booking.handover_offered_at,
             handover_offered_by=booking.handover_offered_by.value if booking.handover_offered_by else None,
             handover_accepted_at=booking.handover_accepted_at,
+            closure_code=booking.closure_code,
+            handover_reminder_sent_at=booking.handover_reminder_sent_at,
+            acceptance_reminder_sent_at=booking.acceptance_reminder_sent_at,
         )
         try:
             self._session.add(model)
@@ -136,6 +139,7 @@ class SqlAlchemyBookingRepository:
         cancelled_at: datetime,
         cancelled_by: EntityId,
         cancellation_reason: str,
+        closure_code: str = "CANCELLED_UNSPECIFIED",
     ) -> bool:
         stmt = (
             update(BookingModel)
@@ -151,19 +155,60 @@ class SqlAlchemyBookingRepository:
                 cancelled_at=cancelled_at,
                 cancelled_by=cancelled_by.value,
                 cancellation_reason=cancellation_reason,
+                closure_code=closure_code,
             )
         )
         result = await self._session.execute(stmt)
         return result.rowcount > 0
 
-    async def expire(self, booking_id: EntityId) -> bool:
+    async def expire(self, booking_id: EntityId, closure_code: str = "HOLD_EXPIRED") -> bool:
         stmt = (
             update(BookingModel)
             .where(
                 BookingModel.id == booking_id.value,
                 BookingModel.status == BookingStatus.AWAITING_PAYMENT.value,
             )
-            .values(status=BookingStatus.EXPIRED.value)
+            .values(status=BookingStatus.EXPIRED.value, closure_code=closure_code)
+        )
+        result = await self._session.execute(stmt)
+        return result.rowcount > 0
+
+    async def list_active_by_listing(self, listing_id: EntityId, limit: int) -> list[Booking]:
+        stmt = (
+            select(BookingModel)
+            .where(
+                BookingModel.listing_id == listing_id.value,
+                BookingModel.status.in_([
+                    BookingStatus.AWAITING_PAYMENT.value,
+                    BookingStatus.CONFIRMED.value,
+                ]),
+            )
+            .limit(limit)
+        )
+        result = await self._session.execute(stmt)
+        return [self._to_domain(m) for m in result.scalars().all()]
+
+    async def invalidate(
+        self,
+        booking_id: EntityId,
+        cancelled_at: datetime,
+        closure_code: str,
+    ) -> bool:
+        stmt = (
+            update(BookingModel)
+            .where(
+                BookingModel.id == booking_id.value,
+                BookingModel.status.in_([
+                    BookingStatus.AWAITING_PAYMENT.value,
+                    BookingStatus.CONFIRMED.value,
+                ]),
+            )
+            .values(
+                status=BookingStatus.CANCELLED.value,
+                cancelled_at=cancelled_at,
+                cancelled_by=None,
+                closure_code=closure_code,
+            )
         )
         result = await self._session.execute(stmt)
         return result.rowcount > 0
@@ -200,6 +245,59 @@ class SqlAlchemyBookingRepository:
         result = await self._session.execute(stmt)
         return result.rowcount > 0
 
+    async def list_due_for_handover_reminder(self, threshold: datetime, limit: int) -> list[Booking]:
+        stmt = (
+            select(BookingModel)
+            .where(
+                BookingModel.status == BookingStatus.CONFIRMED.value,
+                BookingModel.handover_offered_at.is_(None),
+                BookingModel.handover_reminder_sent_at.is_(None),
+                BookingModel.confirmed_at <= threshold,
+            )
+            .limit(limit)
+        )
+        result = await self._session.execute(stmt)
+        return [self._to_domain(m) for m in result.scalars().all()]
+
+    async def claim_handover_reminder(self, booking_id: EntityId, now: datetime) -> bool:
+        stmt = (
+            update(BookingModel)
+            .where(
+                BookingModel.id == booking_id.value,
+                BookingModel.handover_reminder_sent_at.is_(None),
+            )
+            .values(handover_reminder_sent_at=now)
+        )
+        result = await self._session.execute(stmt)
+        return result.rowcount > 0
+
+    async def list_due_for_acceptance_reminder(self, threshold: datetime, limit: int) -> list[Booking]:
+        stmt = (
+            select(BookingModel)
+            .where(
+                BookingModel.status == BookingStatus.CONFIRMED.value,
+                BookingModel.handover_offered_at.is_not(None),
+                BookingModel.handover_accepted_at.is_(None),
+                BookingModel.acceptance_reminder_sent_at.is_(None),
+                BookingModel.handover_offered_at <= threshold,
+            )
+            .limit(limit)
+        )
+        result = await self._session.execute(stmt)
+        return [self._to_domain(m) for m in result.scalars().all()]
+
+    async def claim_acceptance_reminder(self, booking_id: EntityId, now: datetime) -> bool:
+        stmt = (
+            update(BookingModel)
+            .where(
+                BookingModel.id == booking_id.value,
+                BookingModel.acceptance_reminder_sent_at.is_(None),
+            )
+            .values(acceptance_reminder_sent_at=now)
+        )
+        result = await self._session.execute(stmt)
+        return result.rowcount > 0
+
     def _to_domain(self, model: BookingModel) -> Booking:
         return Booking(
             id=EntityId(model.id),
@@ -224,4 +322,7 @@ class SqlAlchemyBookingRepository:
             handover_offered_at=model.handover_offered_at,
             handover_offered_by=EntityId(model.handover_offered_by) if model.handover_offered_by else None,
             handover_accepted_at=model.handover_accepted_at,
+            closure_code=model.closure_code,
+            handover_reminder_sent_at=model.handover_reminder_sent_at,
+            acceptance_reminder_sent_at=model.acceptance_reminder_sent_at,
         )

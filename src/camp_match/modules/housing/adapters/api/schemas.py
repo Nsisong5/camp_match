@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -71,6 +72,10 @@ class PriceSchema(BaseModel):
     currency: str
     period: str
 
+class StatusDetailSchema(BaseModel):
+    code: str
+    message: str
+
 class ListingResponseSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
@@ -80,7 +85,9 @@ class ListingResponseSchema(BaseModel):
     description: str | None
     price: PriceSchema
     status: str
-    media: list[dict] = []
+    status_detail: StatusDetailSchema | None = None
+    media: list[dict[str, Any]] = []
+    is_saved: bool = False
 
 class CreateListingSchema(BaseModel):
     property_id: UUID

@@ -85,16 +85,13 @@ class ChangeCaseStatusUseCase:
                 reports = await self._report_repo.list_by_case_id(case.id)
                 for r in reports:
                     await self._report_repo.update_status(r.id, ReportStatus.CLOSED.value)
-                    try:
-                        await self._event_bus.publish(
-                            SafetyUpdatePublished(
-                                recipient_id=r.reporter_id,
-                                kind=SafetyUpdateKind.REPORT_REVIEWED,
-                                reference_type="REPORT",
-                                reference_id=r.id,
-                            )
+                    self._uow.add_event(
+                        SafetyUpdatePublished(
+                            recipient_id=r.reporter_id,
+                            kind=SafetyUpdateKind.REPORT_REVIEWED,
+                            reference_type="REPORT",
+                            reference_id=r.id,
                         )
-                    except Exception:
-                        pass
+                    )
 
             await self._uow.commit()

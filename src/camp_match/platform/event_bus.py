@@ -19,6 +19,20 @@ def build_event_bus(
         reg_mod.register_notification_subscribers(bus, session_factory, clock, settings)
     except ImportError:
         pass
+    try:
+        housing_reg = importlib.import_module(
+            "camp_match.modules.housing.adapters.events.identity_subscriber"
+        )
+        housing_reg.register_identity_subscribers(bus, session_factory, clock, settings)
+    except ImportError:
+        pass
+    try:
+        booking_housing_reg = importlib.import_module(
+            "camp_match.modules.booking.adapters.events.housing_subscriber"
+        )
+        booking_housing_reg.register_housing_subscribers(bus, session_factory, clock, settings)
+    except ImportError:
+        pass
     return bus
 
 

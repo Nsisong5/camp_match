@@ -38,3 +38,39 @@ class BookingExpired(DomainEvent):
     student_id: EntityId
     property_id: EntityId
     listing_id: EntityId
+
+
+@dataclass(frozen=True, kw_only=True)
+class BookingInvalidated(DomainEvent):
+    booking_id: EntityId
+    student_id: EntityId
+    property_id: EntityId
+    listing_id: EntityId
+    reason_code: str
+    was_confirmed: bool
+
+
+@dataclass(frozen=True, kw_only=True)
+class HandoverOffered(DomainEvent):
+    booking_id: EntityId
+    student_id: EntityId
+    property_id: EntityId
+    listing_id: EntityId
+    offered_by: EntityId
+
+
+@dataclass(frozen=True, kw_only=True)
+class HandoverAccepted(DomainEvent):
+    booking_id: EntityId
+    student_id: EntityId
+    property_id: EntityId
+    listing_id: EntityId
+
+
+@dataclass(frozen=True, kw_only=True)
+class BookingReminderDue(DomainEvent):
+    booking_id: EntityId
+    student_id: EntityId
+    property_id: EntityId
+    listing_id: EntityId
+    reminder_type: str

@@ -59,4 +59,7 @@ class MarkNotificationReadUseCase:
             read_at=notif.read_at,
             created_at=notif.created_at,
             latest_event_at=notif.latest_event_at,
+            action=notif.action,
+            action_required=notif.action_required,
+            resolved_at=notif.resolved_at,
         )

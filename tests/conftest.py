@@ -69,6 +69,11 @@ async def client(db_session):
     # Override the DB session to use the test-managed transaction
     app.dependency_overrides[get_db_session] = lambda: db_session
 
+    default_test_settings = get_settings().model_copy(
+        update={"identity_email_verification_required": False}
+    )
+    app.dependency_overrides[get_settings] = lambda: default_test_settings
+
     # Manually trigger the lifespan of the application to setup db engine/session factory
     async with lifespan(app):
         transport = ASGITransport(app=app)

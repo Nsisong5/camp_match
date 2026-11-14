@@ -112,16 +112,15 @@ class ApproveVerificationUseCase:
                 actor_id=request.caller_id,
                 details=f"Verification approved: {request.reason}",
             )
+            event = VerificationDecisionRecorded(
+                event_id=EntityId.new(),
+                occurred_at=datetime.now(UTC),
+                case_id=case.id,
+                target_type=case.target_type,
+                target_id=case.target_id,
+                decision="VERIFIED",
+            )
+            self.uow.add_event(event)
             await self.uow.commit()
-
-        event = VerificationDecisionRecorded(
-            event_id=EntityId.new(),
-            occurred_at=datetime.now(UTC),
-            case_id=case.id,
-            target_type=case.target_type,
-            target_id=case.target_id,
-            decision="VERIFIED",
-        )
-        await publish_best_effort(self.event_bus, event, logger)
 
         return ApproveVerificationResponse(case_id=case.id, expires_at=expires_at)

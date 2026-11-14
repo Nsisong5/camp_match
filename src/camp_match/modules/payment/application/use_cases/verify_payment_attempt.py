@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import uuid
 import structlog
 
 from camp_match.modules.payment.application.ports.outbound import (
     BookingConfirmationPort,
+    BookingProvider,
     FundDispositionRepository,
     PaymentAttemptRepository,
     PaymentRepository,
@@ -12,6 +14,7 @@ from camp_match.modules.payment.application.ports.provider import (
     PaymentVerificationCapability,
 )
 from camp_match.modules.payment.domain.entities import FundDisposition, Payment
+from camp_match.modules.payment.domain.events import PaymentOutcomeRecorded
 from camp_match.modules.payment.domain.value_objects import (
     FundDispositionStatus,
     PaymentAttemptStatus,
@@ -31,6 +34,7 @@ class VerifyPaymentAttemptUseCase:
         fund_disposition_repo: FundDispositionRepository,
         verification_provider: PaymentVerificationCapability,
         booking_confirmation_port: BookingConfirmationPort,
+        booking_provider: BookingProvider,
         uow: UnitOfWork,
         clock: Clock,
     ) -> None:
@@ -39,6 +43,7 @@ class VerifyPaymentAttemptUseCase:
         self.fund_disposition_repo = fund_disposition_repo
         self.verification_provider = verification_provider
         self.booking_confirmation_port = booking_confirmation_port
+        self.booking_provider = booking_provider
         self.uow = uow
         self.clock = clock
 
@@ -62,6 +67,24 @@ class VerifyPaymentAttemptUseCase:
 
         if verified_tx.normalized_status != PaymentAttemptStatus.SUCCEEDED:
             logger.info("verify_attempt_not_succeeded", attempt_id=attempt_id, status=verified_tx.normalized_status)
+            async with self.uow:
+                booking = await self.booking_provider.get_booking(attempt.booking_id)
+                if booking:
+                    event_id_val = EntityId(
+                        uuid.uuid5(uuid.NAMESPACE_DNS, f"{attempt.id.value}:FAILED")
+                    )
+                    self.uow.add_event(
+                        PaymentOutcomeRecorded(
+                            event_id=event_id_val,
+                            payment_attempt_id=attempt.id,
+                            booking_id=attempt.booking_id,
+                            student_id=attempt.student_id,
+                            property_id=booking.property_id,
+                            listing_id=booking.listing_id,
+                            outcome="FAILED",
+                        )
+                    )
+                await self.uow.commit()
             return False
 
         async with self.uow:
@@ -118,6 +141,22 @@ class VerifyPaymentAttemptUseCase:
                 attempt_id=attempt_id,
             )
             async with self.uow:
+                booking = await self.booking_provider.get_booking(attempt.booking_id)
+                if booking:
+                    event_id_val = EntityId(
+                        uuid.uuid5(uuid.NAMESPACE_DNS, f"{attempt.id.value}:LATE_SUCCESS")
+                    )
+                    self.uow.add_event(
+                        PaymentOutcomeRecorded(
+                            event_id=event_id_val,
+                            payment_attempt_id=attempt.id,
+                            booking_id=attempt.booking_id,
+                            student_id=attempt.student_id,
+                            property_id=booking.property_id,
+                            listing_id=booking.listing_id,
+                            outcome="LATE_SUCCESS",
+                        )
+                    )
                 await self.fund_disposition_repo.update_status(
                     fund_disposition.id, FundDispositionStatus.RECONCILIATION_REQUIRED
                 )

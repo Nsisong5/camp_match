@@ -40,6 +40,9 @@ class BookingModel(Base):
     handover_offered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     handover_offered_by: Mapped[UUID | None] = mapped_column(nullable=True)
     handover_accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    closure_code: Mapped[str | None] = mapped_column(String, nullable=True)
+    handover_reminder_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    acceptance_reminder_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (
         UniqueConstraint("student_id", "idempotency_key", name="uq_student_idempotency_key"),
@@ -48,4 +51,8 @@ class BookingModel(Base):
             name="check_booking_status",
         ),
         CheckConstraint("price_amount_kobo >= 0", name="check_booking_price_non_negative"),
+        CheckConstraint(
+            "closure_code IS NULL OR closure_code IN ('STUDENT_CANCELLED', 'PROVIDER_CANCELLED', 'STAFF_CANCELLED', 'HOLD_EXPIRED', 'LISTING_SUSPENDED', 'OWNER_ACCOUNT_DISABLED', 'CANCELLED_UNSPECIFIED')",
+            name="check_booking_closure_code",
+        ),
     )

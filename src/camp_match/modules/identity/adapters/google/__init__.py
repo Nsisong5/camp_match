@@ -1,0 +1,1 @@
+"""Google auth adapters package."""

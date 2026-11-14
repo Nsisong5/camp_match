@@ -11,7 +11,9 @@ from camp_match.modules.notification.application.ports.inbound import (
 from camp_match.modules.notification.domain.entities import Notification
 from camp_match.modules.notification.domain.value_objects import (
     InboxStatus,
+    NotificationAction,
     NotificationCategory,
+    TargetType,
 )
 from camp_match.shared_kernel.application.pagination import Page, PageRequest
 from camp_match.shared_kernel.domain.identifiers import EntityId
@@ -27,11 +29,24 @@ class NotificationRepository(Protocol):
         recipient_id: EntityId,
         unread_only: bool | None,
         category: NotificationCategory | None,
+        action_required: bool | None,
         page_request: PageRequest,
     ) -> Page[Notification]:
         ...
 
     async def count_unread(self, recipient_id: EntityId) -> int:
+        ...
+
+    async def count_action_required(self, recipient_id: EntityId) -> int:
+        ...
+
+    async def resolve_actions(
+        self,
+        target_type: TargetType,
+        target_id: EntityId,
+        actions: list[NotificationAction],
+        now: datetime,
+    ) -> int:
         ...
 
     async def get_by_id(

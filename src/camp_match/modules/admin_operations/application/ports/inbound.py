@@ -101,6 +101,23 @@ class OverviewView:
     messaging: OverviewSectionView
     issues: OverviewSectionView
     admin_actions: OverviewSectionView
+    background_jobs: OverviewSectionView
+    platform_events: OverviewSectionView
+
+
+@dataclass(frozen=True)
+class RoleGrantRequestView:
+    id: EntityId
+    target_identity_id: EntityId
+    role: str
+    requested_by: EntityId
+    reason: str
+    status: str
+    decided_by: EntityId | None
+    decided_at: datetime | None
+    decision_reason: str | None
+    created_at: datetime
+    expires_at: datetime
 
 
 @dataclass(frozen=True)

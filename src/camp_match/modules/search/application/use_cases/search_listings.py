@@ -1,7 +1,12 @@
+"""Search listings use case."""
+
+from __future__ import annotations
+
 from datetime import datetime
 
 from camp_match.modules.search.application.ports.outbound import (
     HousingProvider,
+    SavedStateProvider,
     UniversityLocationProvider,
     VerificationProvider,
 )
@@ -9,6 +14,7 @@ from camp_match.modules.search.application.use_cases.apply_filters import apply_
 from camp_match.modules.search.domain.ranking import SearchRankingStrategy
 from camp_match.modules.search.domain.value_objects import (
     Coordinates,
+    EntityId,
     ScoredCandidate,
     SearchCriteria,
     SortOption,
@@ -23,14 +29,19 @@ class SearchListings:
         university_location_provider: UniversityLocationProvider,
         verification_provider: VerificationProvider,
         ranking_strategy: SearchRankingStrategy,
+        saved_state_provider: SavedStateProvider | None = None,
     ):
         self._housing_provider = housing_provider
         self._university_location_provider = university_location_provider
         self._verification_provider = verification_provider
         self._ranking_strategy = ranking_strategy
+        self._saved_state_provider = saved_state_provider
 
     async def execute(
-        self, criteria: SearchCriteria, page_request: PageRequest
+        self,
+        criteria: SearchCriteria,
+        page_request: PageRequest,
+        viewer_id: EntityId | None = None,
     ) -> Page[ScoredCandidate]:
         # 1. Fetch from Housing
         candidates = await self._housing_provider.list_eligible_candidates(
@@ -84,8 +95,26 @@ class SearchListings:
         end = start + page_request.page_size
         items = scored[start:end]
 
+        page_listing_ids = [item.listing.listing_id for item in items]
+        saved_ids = (
+            await self._saved_state_provider.get_saved_state(viewer_id, page_listing_ids)
+            if self._saved_state_provider and viewer_id is not None
+            else set()
+        )
+
+        decorated_items = [
+            ScoredCandidate(
+                listing=item.listing,
+                score=item.score,
+                distance_km=item.distance_km,
+                verification_state=item.verification_state,
+                is_saved=(item.listing.listing_id in saved_ids),
+            )
+            for item in items
+        ]
+
         return Page(
-            items=items,
+            items=decorated_items,
             total=total,
             page=page_request.page,
             page_size=page_request.page_size,

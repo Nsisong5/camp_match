@@ -11,6 +11,14 @@ from camp_match.modules.booking.domain.events import (
     BookingConfirmed,
     BookingCreated,
     BookingExpired,
+    BookingInvalidated,
+    BookingReminderDue,
+    HandoverAccepted,
+    HandoverOffered,
+)
+from camp_match.modules.housing.domain.events import (
+    ListingSuspended,
+    ListingSuspensionLifted,
 )
 from camp_match.modules.messaging.domain.events import MessageCreated
 from camp_match.modules.notification.adapters.housing.property_owner_provider import (
@@ -32,11 +40,12 @@ from camp_match.modules.notification.application.use_cases.process_inbox_event i
 from camp_match.modules.notification.application.use_cases.receive_event import (
     ReceiveEventUseCase,
 )
-from camp_match.modules.verification.domain.events import VerificationDecisionRecorded
+from camp_match.modules.notification.domain.value_objects import NotificationType
+from camp_match.modules.payment.domain.events import PaymentOutcomeRecorded
 from camp_match.modules.trust_safety.application.ports.events import (
     SafetyUpdatePublished,
 )
-from camp_match.modules.notification.domain.value_objects import NotificationType
+from camp_match.modules.verification.domain.events import VerificationDecisionRecorded
 from camp_match.platform.db.unit_of_work import SqlAlchemyUnitOfWork
 
 logger = structlog.get_logger()
@@ -94,6 +103,72 @@ def event_to_payload(event: Any) -> tuple[str, str, dict[str, Any]]:
             "listing_id": str(event.listing_id),
             "cancelled_by": str(event.cancelled_by),
         }
+    elif isinstance(event, BookingInvalidated):
+        event_type = "BookingInvalidated"
+        payload = {
+            "booking_id": str(event.booking_id),
+            "student_id": str(event.student_id),
+            "property_id": str(event.property_id),
+            "listing_id": str(event.listing_id),
+            "reason_code": event.reason_code,
+        }
+    elif isinstance(event, HandoverOffered):
+        event_type = "HandoverOffered"
+        payload = {
+            "booking_id": str(event.booking_id),
+            "student_id": str(event.student_id),
+            "property_id": str(event.property_id),
+            "listing_id": str(event.listing_id),
+        }
+    elif isinstance(event, HandoverAccepted):
+        event_type = "HandoverAccepted"
+        payload = {
+            "booking_id": str(event.booking_id),
+            "student_id": str(event.student_id),
+            "property_id": str(event.property_id),
+            "listing_id": str(event.listing_id),
+        }
+    elif isinstance(event, BookingReminderDue):
+        event_type = "BookingReminderDue"
+        payload = {
+            "booking_id": str(event.booking_id),
+            "student_id": str(event.student_id),
+            "property_id": str(event.property_id),
+            "listing_id": str(event.listing_id),
+            "reminder_type": (
+                event.reminder_type.value
+                if hasattr(event.reminder_type, "value")
+                else str(event.reminder_type)
+            ),
+        }
+    elif isinstance(event, ListingSuspended):
+        event_type = "ListingSuspended"
+        payload = {
+            "listing_id": str(event.listing_id),
+            "property_id": str(event.property_id),
+            "owner_id": str(event.owner_id),
+            "reason_code": event.reason_code,
+        }
+    elif isinstance(event, ListingSuspensionLifted):
+        event_type = "ListingSuspensionLifted"
+        payload = {
+            "listing_id": str(event.listing_id),
+            "property_id": str(event.property_id),
+            "owner_id": str(event.owner_id),
+        }
+    elif isinstance(event, PaymentOutcomeRecorded):
+        event_type = "PaymentOutcomeRecorded"
+        payload = {
+            "booking_id": str(event.booking_id),
+            "student_id": str(event.student_id),
+            "property_id": str(event.property_id),
+            "listing_id": str(event.listing_id),
+            "outcome": (
+                event.outcome.value
+                if hasattr(event.outcome, "value")
+                else str(event.outcome)
+            ),
+        }
     elif isinstance(event, VerificationDecisionRecorded):
         decision_str = str(event.decision).upper()
         mapping = {
@@ -101,7 +176,9 @@ def event_to_payload(event: Any) -> tuple[str, str, dict[str, Any]]:
             "REJECTED": NotificationType.VERIFICATION_REJECTED.value,
             "REVOKED": NotificationType.VERIFICATION_REVOKED.value,
         }
-        event_type = mapping.get(decision_str, NotificationType.VERIFICATION_VERIFIED.value)
+        event_type = mapping.get(
+            decision_str, NotificationType.VERIFICATION_VERIFIED.value
+        )
         payload = {
             "case_id": str(event.case_id),
             "target_type": (
@@ -121,13 +198,19 @@ def event_to_payload(event: Any) -> tuple[str, str, dict[str, Any]]:
             "LISTING_SUSPENDED": NotificationType.SAFETY_LISTING_SUSPENDED.value,
             "RESTRICTION_LIFTED": NotificationType.SAFETY_RESTRICTION_LIFTED.value,
         }
-        kind_str = event.kind.value if hasattr(event.kind, "value") else str(event.kind)
-        event_type = kind_map.get(kind_str, NotificationType.SAFETY_WARNING_ISSUED.value)
+        kind_str = (
+            event.kind.value if hasattr(event.kind, "value") else str(event.kind)
+        )
+        event_type = kind_map.get(
+            kind_str, NotificationType.SAFETY_WARNING_ISSUED.value
+        )
         payload = {
             "recipient_id": str(event.recipient_id),
             "kind": kind_str,
             "reference_type": event.reference_type,
-            "reference_id": str(event.reference_id) if event.reference_id else None,
+            "reference_id": str(event.reference_id)
+            if event.reference_id
+            else None,
         }
     else:
         raise ValueError(f"Unknown event type: {type(event)}")
@@ -149,12 +232,14 @@ def create_handler(
             uow = SqlAlchemyUnitOfWork(session)
             inbox_repo = SqlAlchemyInboxRepository(session)
             notification_repo = SqlAlchemyNotificationRepository(session)
-            
+
             housing_repo_mod = importlib.import_module(
                 "camp_match.modules.housing.adapters.persistence.repository"
             )
             property_repo = housing_repo_mod.SqlAlchemyPropertyRepository(session)
-            property_owner_provider = SqlAlchemyPropertyOwnerProvider(property_repo)
+            property_owner_provider = SqlAlchemyPropertyOwnerProvider(
+                property_repo
+            )
 
             receive_uc = ReceiveEventUseCase(inbox_repo, uow, clock)
             inserted = await receive_uc.execute(

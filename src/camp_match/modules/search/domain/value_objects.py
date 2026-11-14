@@ -108,3 +108,4 @@ class ScoredCandidate:
     score: float
     distance_km: float | None = None
     verification_state: VerificationState = VerificationState.UNKNOWN
+    is_saved: bool = False

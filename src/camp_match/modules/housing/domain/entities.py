@@ -80,6 +80,7 @@ class Listing:
     price: Price
     status: ListingStatus = ListingStatus.DRAFT
     suspension_reference: EntityId | None = None
+    suspension_reason: str | None = None
     created_at: datetime = field(default_factory=datetime.now)
     updated_at: datetime = field(default_factory=datetime.now)
 

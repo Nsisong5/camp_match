@@ -81,6 +81,7 @@ class ListingModel(Base):
     price_period: Mapped[str] = mapped_column(String, nullable=False)
     status: Mapped[str] = mapped_column(String, nullable=False, default="DRAFT", index=True)
     suspension_reference: Mapped[UUID | None] = mapped_column(nullable=True)
+    suspension_reason: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

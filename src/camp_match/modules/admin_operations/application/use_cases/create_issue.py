@@ -2,17 +2,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from camp_match.modules.admin_operations.adapters.persistence.issue_repository import (
-    SqlAlchemyIssueRepository,
-)
 from camp_match.modules.admin_operations.application.errors import (
     IdempotencyKeyConflict,
 )
-from camp_match.modules.admin_operations.application.ports.inbound import IssueView
-from camp_match.modules.admin_operations.domain.entities import (
-    IssueEvent,
-    OperationalIssue,
+from camp_match.modules.admin_operations.application.ports.inbound import (
+    IssueView,
 )
+from camp_match.modules.admin_operations.domain.entities import IssueEvent, OperationalIssue
 from camp_match.modules.admin_operations.domain.value_objects import (
     IssueCategory,
     IssuePriority,
@@ -26,12 +22,12 @@ from camp_match.shared_kernel.domain.identifiers import EntityId
 class CreateIssueUseCase:
     def __init__(
         self,
-        issue_repo: Any,
+        issue_repo_factory: Any,
         authorizer: Any,
         uow_factory: Any,
         clock: Any,
     ) -> None:
-        self._issue_repo = issue_repo
+        self._issue_repo = issue_repo_factory
         self._authorizer = authorizer
         self._uow_factory = uow_factory
         self._clock = clock
@@ -80,7 +76,7 @@ class CreateIssueUseCase:
         )
 
         async with self._uow_factory() as session:
-            repo = SqlAlchemyIssueRepository(session)
+            repo = self._issue_repo(session)
             await repo.add(issue)
             await repo.add_event(event)
             await session.commit()

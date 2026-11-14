@@ -2,9 +2,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from camp_match.modules.admin_operations.adapters.persistence.issue_repository import (
-    SqlAlchemyIssueRepository,
-)
 from camp_match.modules.admin_operations.application.errors import (
     IssueNotFound,
     IssueStateChanged,
@@ -21,12 +18,12 @@ from camp_match.shared_kernel.domain.identifiers import EntityId
 class ChangeIssueStatusUseCase:
     def __init__(
         self,
-        issue_repo: Any,
+        issue_repo_factory: Any,
         authorizer: Any,
         uow_factory: Any,
         clock: Any,
     ) -> None:
-        self._issue_repo = issue_repo
+        self._issue_repo = issue_repo_factory
         self._authorizer = authorizer
         self._uow_factory = uow_factory
         self._clock = clock
@@ -70,7 +67,7 @@ class ChangeIssueStatusUseCase:
         )
 
         async with self._uow_factory() as session:
-            repo = SqlAlchemyIssueRepository(session)
+            repo = self._issue_repo(session)
             success = await repo.update_status(
                 issue_id,
                 new_status,
@@ -86,7 +83,7 @@ class ChangeIssueStatusUseCase:
             await session.commit()
 
         async with self._uow_factory() as session:
-            repo = SqlAlchemyIssueRepository(session)
+            repo = self._issue_repo(session)
             final_issue = await repo.get(issue_id)
         assert final_issue is not None
         return IssueView(

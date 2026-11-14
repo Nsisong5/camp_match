@@ -37,6 +37,7 @@ class ScoredCandidateResponse(BaseModel):
     score: float
     distance_km: float | None = None
     verification_state: VerificationState = VerificationState.UNKNOWN
+    is_saved: bool = False
 
 
 class SearchPageSchema(BaseModel):

@@ -185,6 +185,14 @@ class SubmitReportUseCase:
                         confidentiality=Confidentiality.RESTRICTED if ev_type == EvidenceType.MESSAGE_SNAPSHOT else Confidentiality.INTERNAL,
                     )
                     await self._evidence_repo.add(evidence)
+                self._uow.add_event(
+                    SafetyUpdatePublished(
+                        recipient_id=request.actor_id,
+                        kind=SafetyUpdateKind.REPORT_RECEIVED,
+                        reference_type="REPORT",
+                        reference_id=report_id,
+                    )
+                )
                 await self._uow.commit()
             except (IdempotencyKeyConflict, DuplicateOpenReport):
                 await self._uow.rollback()
@@ -194,18 +202,6 @@ class SubmitReportUseCase:
                 traceback.print_exc()
                 await self._uow.rollback()
                 raise IdempotencyKeyConflict("Idempotency key conflict or duplicate report.") from e
-
-        try:
-            await self._event_bus.publish(
-                SafetyUpdatePublished(
-                    recipient_id=request.actor_id,
-                    kind=SafetyUpdateKind.REPORT_RECEIVED,
-                    reference_type="REPORT",
-                    reference_id=report_id,
-                )
-            )
-        except Exception:
-            pass
 
         logger.info(
             "safety_report_accepted",

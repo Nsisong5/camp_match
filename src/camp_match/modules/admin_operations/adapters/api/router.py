@@ -66,11 +66,26 @@ from camp_match.modules.admin_operations.application.use_cases.reactivate_accoun
 from camp_match.modules.admin_operations.application.use_cases.requeue_dead_notification_events import (
     RequeueDeadNotificationEventsUseCase,
 )
+from camp_match.modules.admin_operations.application.use_cases.requeue_dead_platform_events import (
+    RequeueDeadPlatformEventsUseCase,
+)
 from camp_match.modules.admin_operations.application.use_cases.requeue_failed_safety_enforcement import (
     RequeueFailedSafetyEnforcementUseCase,
 )
 from camp_match.modules.admin_operations.application.use_cases.revoke_staff_role import (
     RevokeStaffRoleUseCase,
+)
+from camp_match.modules.admin_operations.application.use_cases.get_jobs import (
+    GetJobsUseCase,
+)
+from camp_match.modules.admin_operations.application.use_cases.list_staff_role_requests import (
+    ListStaffRoleRequestsUseCase,
+)
+from camp_match.modules.admin_operations.application.use_cases.approve_staff_role_grant import (
+    ApproveStaffRoleGrantUseCase,
+)
+from camp_match.modules.admin_operations.application.use_cases.reject_staff_role_grant import (
+    RejectStaffRoleGrantUseCase,
 )
 from camp_match.modules.admin_operations.domain.entities import DomainError
 from camp_match.modules.admin_operations.domain.value_objects import (
@@ -351,14 +366,23 @@ async def list_staff(
     return await uc.execute(actor_id, role, PageRequest(page=page, page_size=page_size))
 
 
-@router.post("/staff/{identity_id}/roles", response_model=schemas.StaffViewSchema)
+@router.post("/staff/{identity_id}/roles", response_model=Any)
 async def grant_staff_role(
     actor_id: Annotated[EntityId, Depends(get_current_identity_id)],
     identity_id: UUID,
     body: schemas.GrantRoleSchema,
     uc: Annotated[GrantStaffRoleUseCase, Depends(dependencies.get_grant_staff_role_use_case)],
+    response: Response,
 ) -> Any:
-    return await uc.execute(actor_id, EntityId(identity_id), body.role, body.reason)
+    try:
+        res = await uc.execute(actor_id, EntityId(identity_id), body.role, body.reason)
+        if hasattr(res, "status") and res.status == "PENDING":
+            response.status_code = status.HTTP_202_ACCEPTED
+            return schemas.RoleGrantRequestResponse.model_validate(res)
+        return res
+    except Exception as e:
+        _handle_error(e)
+        raise
 
 
 @router.post("/staff/{identity_id}/roles/{role}/revoke", response_model=schemas.StaffViewSchema)
@@ -372,6 +396,67 @@ async def revoke_staff_role(
     return await uc.execute(actor_id, EntityId(identity_id), role, body.reason)
 
 
+@router.get("/jobs", response_model=list[schemas.JobStatusResponse])
+async def get_jobs(
+    actor_id: Annotated[EntityId, Depends(get_current_identity_id)],
+    uc: Annotated[GetJobsUseCase, Depends(dependencies.get_get_jobs_use_case)],
+) -> Any:
+    try:
+        return await uc.execute(actor_id)
+    except Exception as e:
+        _handle_error(e)
+        raise
+
+
+@router.get("/staff/role-requests", response_model=schemas.PageSchema[schemas.RoleGrantRequestResponse])
+async def list_staff_role_requests(
+    actor_id: Annotated[EntityId, Depends(get_current_identity_id)],
+    uc: Annotated[ListStaffRoleRequestsUseCase, Depends(dependencies.get_list_staff_role_requests_use_case)],
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+) -> Any:
+    try:
+        page_obj = await uc.execute(actor_id, PageRequest(page=page, page_size=page_size))
+        return schemas.PageSchema[schemas.RoleGrantRequestResponse](
+            items=[schemas.RoleGrantRequestResponse.model_validate(item) for item in page_obj.items],
+            total=page_obj.total,
+            page=page_obj.page,
+            page_size=page_obj.page_size,
+        )
+    except Exception as e:
+        _handle_error(e)
+        raise
+
+
+@router.post("/staff/role-requests/{request_id}/approve", response_model=schemas.StaffViewSchema)
+async def approve_staff_role_grant(
+    actor_id: Annotated[EntityId, Depends(get_current_identity_id)],
+    request_id: UUID,
+    body: schemas.ReasonSchema,
+    uc: Annotated[ApproveStaffRoleGrantUseCase, Depends(dependencies.get_approve_staff_role_grant_use_case)],
+) -> Any:
+    try:
+        return await uc.execute(actor_id, EntityId(request_id), body.reason)
+    except Exception as e:
+        _handle_error(e)
+        raise
+
+
+@router.post("/staff/role-requests/{request_id}/reject", response_model=schemas.RoleGrantRequestResponse)
+async def reject_staff_role_grant(
+    actor_id: Annotated[EntityId, Depends(get_current_identity_id)],
+    request_id: UUID,
+    body: schemas.ReasonSchema,
+    uc: Annotated[RejectStaffRoleGrantUseCase, Depends(dependencies.get_reject_staff_role_grant_use_case)],
+) -> Any:
+    try:
+        res = await uc.execute(actor_id, EntityId(request_id), body.reason)
+        return schemas.RoleGrantRequestResponse.model_validate(res)
+    except Exception as e:
+        _handle_error(e)
+        raise
+
+
 @router.post("/recovery/notification-events/requeue-dead", response_model=schemas.RecoveryResultSchema)
 async def requeue_dead_notifications(
     actor_id: Annotated[EntityId, Depends(get_current_identity_id)],
@@ -379,6 +464,18 @@ async def requeue_dead_notifications(
     uc: Annotated[
         RequeueDeadNotificationEventsUseCase,
         Depends(dependencies.get_requeue_dead_notification_events_use_case),
+    ],
+) -> Any:
+    return await uc.execute(actor_id, body.reason)
+
+
+@router.post("/recovery/platform-events/requeue-dead", response_model=schemas.RecoveryResultSchema)
+async def requeue_dead_platform_events(
+    actor_id: Annotated[EntityId, Depends(get_current_identity_id)],
+    body: schemas.ReasonSchema,
+    uc: Annotated[
+        RequeueDeadPlatformEventsUseCase,
+        Depends(dependencies.get_requeue_dead_platform_events_use_case),
     ],
 ) -> Any:
     return await uc.execute(actor_id, body.reason)

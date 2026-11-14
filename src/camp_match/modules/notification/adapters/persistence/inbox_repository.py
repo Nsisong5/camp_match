@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.dialects.postgresql import insert
 
 from camp_match.modules.notification.adapters.persistence.models import InboxModel
@@ -145,3 +145,17 @@ class SqlAlchemyInboxRepository:
         res = await self.session.execute(stmt)
         data = {InboxStatus(row[0]): row[1] for row in res.all()}
         return {st: data.get(st, 0) for st in InboxStatus}
+
+    async def purge_processed_or_rejected(self, cutoff: datetime, limit: int) -> int:
+        subq = (
+            select(InboxModel.event_id)
+            .where(
+                InboxModel.status.in_(["PROCESSED", "REJECTED"]),
+                InboxModel.processed_at < cutoff,
+            )
+            .limit(limit)
+            .scalar_subquery()
+        )
+        stmt = delete(InboxModel).where(InboxModel.event_id.in_(subq))
+        res = await self.session.execute(stmt)
+        return int(res.rowcount)

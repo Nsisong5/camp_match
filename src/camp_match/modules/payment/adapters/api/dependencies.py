@@ -144,6 +144,7 @@ def get_verify_payment_attempt_use_case(
     fund_disposition_repo: Annotated[SqlAlchemyFundDispositionRepository, Depends(get_fund_disposition_repo)],
     provider: Annotated[MockPaymentProviderAdapter, Depends(get_mock_provider)],
     booking_confirmation_port: Annotated[Any, Depends(get_booking_confirmation_port)],
+    booking_provider: Annotated[InProcessBookingProvider, Depends(get_booking_provider)],
     uow: Annotated[SqlAlchemyUnitOfWork, Depends(get_uow)],
     clock: Annotated[SystemClock, Depends(get_clock)],
 ) -> VerifyPaymentAttemptUseCase:
@@ -153,6 +154,7 @@ def get_verify_payment_attempt_use_case(
         fund_disposition_repo,
         provider,
         booking_confirmation_port,
+        booking_provider,
         uow,
         clock,
     )
@@ -163,11 +165,12 @@ def get_process_webhook_use_case(
     attempt_repo: Annotated[SqlAlchemyPaymentAttemptRepository, Depends(get_payment_attempt_repo)],
     provider: Annotated[MockPaymentProviderAdapter, Depends(get_mock_provider)],
     verify_uc: Annotated[VerifyPaymentAttemptUseCase, Depends(get_verify_payment_attempt_use_case)],
+    booking_provider: Annotated[InProcessBookingProvider, Depends(get_booking_provider)],
     uow: Annotated[SqlAlchemyUnitOfWork, Depends(get_uow)],
     clock: Annotated[SystemClock, Depends(get_clock)],
 ) -> ProcessWebhookEventUseCase:
     return ProcessWebhookEventUseCase(
-        webhook_repo, attempt_repo, provider, verify_uc, uow, clock
+        webhook_repo, attempt_repo, provider, verify_uc, booking_provider, uow, clock
     )
 
 

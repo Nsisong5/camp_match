@@ -51,11 +51,10 @@ class DisableAccountUseCase:
         if account.status != old_status:
             async with self._unit_of_work:
                 await self._repository.update(account)
+                event = AccountDisabled(user_id=account.id, occurred_at=self._clock.now())
+                self._unit_of_work.add_event(event)
+                await self._event_bus.publish(event)
                 await self._unit_of_work.commit()
-
-            # Publish event
-            event = AccountDisabled(user_id=account.id, occurred_at=self._clock.now())
-            await self._event_bus.publish(event)
 
             logger.info("account_disabled", identity_id=str(account.id))
         else:

@@ -1,4 +1,6 @@
-from datetime import datetime
+"""Fixed clock test support."""
+
+from datetime import datetime, timedelta
 
 
 class FixedClock:
@@ -7,3 +9,6 @@ class FixedClock:
 
     def now(self) -> datetime:
         return self._fixed_time
+
+    def advance(self, seconds: int = 1) -> None:
+        self._fixed_time += timedelta(seconds=seconds)

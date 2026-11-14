@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import contextlib
+
 import structlog
 
+from camp_match.config.settings import Settings
 from camp_match.modules.identity.application.errors import (
     AccountDisabled,
     AccountSuspended,
+    EmailNotVerified,
     InvalidCredentials,
 )
 from camp_match.modules.identity.application.ports.inbound import (
@@ -17,6 +21,9 @@ from camp_match.modules.identity.application.ports.outbound import (
     AuthenticationSessionPort,
     IdentityRepository,
     PasswordHasher,
+)
+from camp_match.modules.identity.application.services.email_verification_issuer import (
+    EmailVerificationIssuer,
 )
 from camp_match.modules.identity.domain.value_objects import AccountStatus, EmailAddress
 
@@ -29,34 +36,37 @@ class AuthenticateUserUseCase:
         repository: IdentityRepository,
         password_hasher: PasswordHasher,
         session_port: AuthenticationSessionPort,
+        issuer: EmailVerificationIssuer | None = None,
+        settings: Settings | None = None,
     ) -> None:
         self._repository = repository
         self._password_hasher = password_hasher
         self._session_port = session_port
+        self._issuer = issuer
+        self._settings = settings
 
     async def execute(self, request: AuthenticationRequest) -> TokenResponse:
-        # Step 1: Normalize email
         try:
             email_vo = EmailAddress(request.email)
         except ValueError:
             logger.warning("login_failed", reason="invalid_email_format")
             raise InvalidCredentials("Invalid credentials.") from None
 
-        # Step 2: Look up account by email
         account = await self._repository.get_by_email(email_vo)
 
-        # Step 3: Handle account not found
         if account is None:
             logger.warning("login_failed", reason="account_not_found", email=str(email_vo))
             raise InvalidCredentials("Invalid credentials.")
 
-        # Step 4: Verify password
+        if account.password_hash is None:
+            logger.warning("login_failed", reason="account_has_no_password", email=str(email_vo))
+            raise InvalidCredentials("Invalid credentials.")
+
         is_valid = self._password_hasher.verify(request.raw_password, account.password_hash)
         if not is_valid:
             logger.warning("login_failed", reason="invalid_password", identity_id=str(account.id))
             raise InvalidCredentials("Invalid credentials.")
 
-        # Step 5: Check account status
         if not account.can_authenticate:
             logger.warning("login_blocked", status=account.status.name, identity_id=str(account.id))
             if account.status == AccountStatus.SUSPENDED:
@@ -66,7 +76,18 @@ class AuthenticateUserUseCase:
             else:
                 raise InvalidCredentials("Account cannot authenticate.")
 
-        # Step 6: Issue tokens
+        verification_required = (
+            self._settings.identity_email_verification_required
+            if self._settings is not None
+            else False
+        )
+        if verification_required and not account.is_email_verified:
+            logger.warning("login_blocked_unverified", identity_id=str(account.id))
+            if self._issuer is not None:
+                with contextlib.suppress(Exception):
+                    await self._issuer.issue_and_send(account)
+            raise EmailNotVerified("Your email address has not been verified.")
+
         token_pair = await self._session_port.issue_tokens(account.id)
 
         logger.info("login_succeeded", identity_id=str(account.id))

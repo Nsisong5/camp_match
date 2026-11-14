@@ -31,6 +31,10 @@ from camp_match.modules.messaging.application.use_cases.restriction_management i
 from camp_match.modules.messaging.adapters.ratelimit.in_memory_rate_limiter import (
     InMemoryRateLimiter,
 )
+from camp_match.modules.messaging.adapters.ratelimit.postgres_rate_limiter import (
+    PostgresRateLimiter,
+)
+from camp_match.modules.messaging.adapters.realtime.factory import create_realtime_gateway
 from camp_match.modules.messaging.adapters.realtime.null_gateway import NullRealtimeGateway
 from camp_match.modules.messaging.adapters.restriction.identity_restriction_provider import (
     IdentityBackedRestrictionProvider,
@@ -71,10 +75,20 @@ from camp_match.platform.db.session import get_db_session
 from camp_match.platform.db.unit_of_work import SqlAlchemyUnitOfWork
 
 
-def get_rate_limiter(request: Request) -> InMemoryRateLimiter:
-    if not hasattr(request.app.state, "rate_limiter"):
-        request.app.state.rate_limiter = InMemoryRateLimiter()
-    return request.app.state.rate_limiter
+def get_rate_limiter(request: Request) -> Any:
+    settings = get_settings()
+    backend = getattr(settings, "messaging_rate_limiter_backend", "in_memory")
+    if backend == "postgres":
+        session_factory = getattr(request.app.state, "db_session_factory", None)
+        if not session_factory:
+            raise RuntimeError("Database session factory not initialized on app state.")
+        return PostgresRateLimiter(session_factory)
+    elif backend == "in_memory":
+        if not hasattr(request.app.state, "rate_limiter"):
+            request.app.state.rate_limiter = InMemoryRateLimiter()
+        return request.app.state.rate_limiter
+    else:
+        raise ValueError(f"Invalid messaging_rate_limiter_backend: {backend}")
 
 
 def get_authorization_service(session: Annotated[AsyncSession, Depends(get_db_session)]) -> InProcessAuthorizationService:
@@ -194,6 +208,13 @@ def get_get_conversation_use_case(
     )
 
 
+def get_realtime_gateway(request: Request) -> Any:
+    settings = get_settings()
+    connection_manager = getattr(request.app.state, "connection_manager", None)
+    session_factory = getattr(request.app.state, "db_session_factory", None)
+    return create_realtime_gateway(settings, connection_manager, session_factory)
+
+
 def get_send_message_use_case(
     session: Annotated[AsyncSession, Depends(get_db_session)],
     guard: Annotated[ParticipantGuard, Depends(get_participant_guard)],
@@ -203,7 +224,7 @@ def get_send_message_use_case(
     message_repo = SqlAlchemyMessageRepository(session)
     outbox_repo = SqlAlchemyOutboxRepository(session)
     rate_limiter = get_rate_limiter(request)
-    gateway = NullRealtimeGateway()
+    gateway = get_realtime_gateway(request)
     dispatcher = NullMessageEventDispatcher()
     uow = SqlAlchemyUnitOfWork(session)
     clock = get_clock()

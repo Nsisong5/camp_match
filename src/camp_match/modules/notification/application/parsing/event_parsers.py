@@ -28,6 +28,7 @@ def parse_event(event_type: str, payload: dict[str, Any]) -> Any:
         NotificationType.BOOKING_CONFIRMED_STUDENT.value,
         NotificationType.BOOKING_CONFIRMED_PROVIDER.value,
         NotificationType.BOOKING_EXPIRED_STUDENT.value,
+        NotificationType.BOOKING_CREATED_STUDENT.value,
     }:
         return _parse_booking_basic(payload)
     elif event_type in {
@@ -51,6 +52,45 @@ def parse_event(event_type: str, payload: dict[str, Any]) -> Any:
         "SafetyUpdatePublished",
     }:
         return _parse_safety_update(payload)
+    elif event_type in {
+        NotificationType.HOUSING_LISTING_SUSPENDED.value,
+        "ListingSuspended",
+    }:
+        return _parse_listing_suspended(payload)
+    elif event_type in {
+        NotificationType.HOUSING_LISTING_SUSPENSION_LIFTED.value,
+        "ListingSuspensionLifted",
+    }:
+        return _parse_listing_suspension_lifted(payload)
+    elif event_type in {
+        NotificationType.BOOKING_INVALIDATED_STUDENT.value,
+        NotificationType.BOOKING_INVALIDATED_PROVIDER.value,
+        "BookingInvalidated",
+    }:
+        return _parse_booking_invalidated(payload)
+    elif event_type in {
+        NotificationType.HANDOVER_OFFERED_STUDENT.value,
+        "HandoverOffered",
+    }:
+        return _parse_handover_offered(payload)
+    elif event_type in {
+        NotificationType.HANDOVER_ACCEPTED_PROVIDER.value,
+        "HandoverAccepted",
+    }:
+        return _parse_handover_accepted(payload)
+    elif event_type in {
+        NotificationType.BOOKING_HANDOVER_REMINDER_PROVIDER.value,
+        NotificationType.BOOKING_ACCEPTANCE_REMINDER_STUDENT.value,
+        "BookingReminderDue",
+    }:
+        return _parse_booking_reminder(payload)
+    elif event_type in {
+        NotificationType.PAYMENT_FAILED_STUDENT.value,
+        NotificationType.PAYMENT_LATE_STUDENT.value,
+        NotificationType.PAYMENT_REVIEW_STUDENT.value,
+        "PaymentOutcomeRecorded",
+    }:
+        return _parse_payment_outcome(payload)
     else:
         raise ValueError(f"Unsupported event type: {event_type}")
 
@@ -83,12 +123,44 @@ class BookingEventData:
         property_id: EntityId,
         listing_id: EntityId,
         cancelled_by: EntityId | None = None,
+        reason_code: str | None = None,
+        reminder_type: str | None = None,
+        outcome: str | None = None,
     ) -> None:
         self.booking_id = booking_id
         self.student_id = student_id
         self.property_id = property_id
         self.listing_id = listing_id
         self.cancelled_by = cancelled_by
+        self.reason_code = reason_code
+        self.reminder_type = reminder_type
+        self.outcome = outcome
+
+
+class ListingSuspendedEvent:
+    def __init__(
+        self,
+        listing_id: EntityId,
+        property_id: EntityId,
+        owner_id: EntityId,
+        reason_code: str | None = None,
+    ) -> None:
+        self.listing_id = listing_id
+        self.property_id = property_id
+        self.owner_id = owner_id
+        self.reason_code = reason_code
+
+
+class ListingSuspensionLiftedEvent:
+    def __init__(
+        self,
+        listing_id: EntityId,
+        property_id: EntityId,
+        owner_id: EntityId,
+    ) -> None:
+        self.listing_id = listing_id
+        self.property_id = property_id
+        self.owner_id = owner_id
 
 
 class VerificationEventData:
@@ -155,6 +227,92 @@ def _parse_booking_cancelled(p: dict[str, Any]) -> BookingEventData:
         property_id=EntityId(_to_uuid(p["property_id"])),
         listing_id=EntityId(_to_uuid(p["listing_id"])),
         cancelled_by=EntityId(_to_uuid(p["cancelled_by"])),
+    )
+
+
+def _parse_booking_invalidated(p: dict[str, Any]) -> BookingEventData:
+    for field in ["booking_id", "student_id", "property_id", "listing_id"]:
+        if field not in p:
+            raise ValueError(f"Missing required field: {field}")
+    return BookingEventData(
+        booking_id=EntityId(_to_uuid(p["booking_id"])),
+        student_id=EntityId(_to_uuid(p["student_id"])),
+        property_id=EntityId(_to_uuid(p["property_id"])),
+        listing_id=EntityId(_to_uuid(p["listing_id"])),
+        reason_code=p.get("reason_code"),
+    )
+
+
+def _parse_handover_offered(p: dict[str, Any]) -> BookingEventData:
+    for field in ["booking_id", "student_id", "property_id", "listing_id"]:
+        if field not in p:
+            raise ValueError(f"Missing required field: {field}")
+    return BookingEventData(
+        booking_id=EntityId(_to_uuid(p["booking_id"])),
+        student_id=EntityId(_to_uuid(p["student_id"])),
+        property_id=EntityId(_to_uuid(p["property_id"])),
+        listing_id=EntityId(_to_uuid(p["listing_id"])),
+    )
+
+
+def _parse_handover_accepted(p: dict[str, Any]) -> BookingEventData:
+    for field in ["booking_id", "student_id", "property_id", "listing_id"]:
+        if field not in p:
+            raise ValueError(f"Missing required field: {field}")
+    return BookingEventData(
+        booking_id=EntityId(_to_uuid(p["booking_id"])),
+        student_id=EntityId(_to_uuid(p["student_id"])),
+        property_id=EntityId(_to_uuid(p["property_id"])),
+        listing_id=EntityId(_to_uuid(p["listing_id"])),
+    )
+
+
+def _parse_booking_reminder(p: dict[str, Any]) -> BookingEventData:
+    for field in ["booking_id", "student_id", "property_id", "listing_id", "reminder_type"]:
+        if field not in p:
+            raise ValueError(f"Missing required field: {field}")
+    return BookingEventData(
+        booking_id=EntityId(_to_uuid(p["booking_id"])),
+        student_id=EntityId(_to_uuid(p["student_id"])),
+        property_id=EntityId(_to_uuid(p["property_id"])),
+        listing_id=EntityId(_to_uuid(p["listing_id"])),
+        reminder_type=str(p["reminder_type"]),
+    )
+
+
+def _parse_payment_outcome(p: dict[str, Any]) -> BookingEventData:
+    for field in ["booking_id", "student_id", "property_id", "listing_id", "outcome"]:
+        if field not in p:
+            raise ValueError(f"Missing required field: {field}")
+    return BookingEventData(
+        booking_id=EntityId(_to_uuid(p["booking_id"])),
+        student_id=EntityId(_to_uuid(p["student_id"])),
+        property_id=EntityId(_to_uuid(p["property_id"])),
+        listing_id=EntityId(_to_uuid(p["listing_id"])),
+        outcome=str(p["outcome"]).upper(),
+    )
+
+
+def _parse_listing_suspended(p: dict[str, Any]) -> ListingSuspendedEvent:
+    for field in ["listing_id", "property_id", "owner_id"]:
+        if field not in p:
+            raise ValueError(f"Missing required field: {field}")
+    return ListingSuspendedEvent(
+        listing_id=EntityId(_to_uuid(p["listing_id"])),
+        property_id=EntityId(_to_uuid(p["property_id"])),
+        owner_id=EntityId(_to_uuid(p["owner_id"])),
+        reason_code=p.get("reason_code"),
+    )
+
+
+def _parse_listing_suspension_lifted(p: dict[str, Any]) -> ListingSuspensionLiftedEvent:
+    for field in ["listing_id", "property_id", "owner_id"]:
+        if field not in p:
+            raise ValueError(f"Missing required field: {field}")
+    return ListingSuspensionLiftedEvent(
+        listing_id=EntityId(_to_uuid(p["listing_id"])),
+        property_id=EntityId(_to_uuid(p["property_id"])),
+        owner_id=EntityId(_to_uuid(p["owner_id"])),
     )
 
 

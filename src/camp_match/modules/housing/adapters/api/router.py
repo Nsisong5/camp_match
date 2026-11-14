@@ -56,7 +56,21 @@ from camp_match.modules.media.application.use_cases.get_authorized_access import
 from camp_match.modules.media.application.use_cases.upload_media import UploadMediaUseCase
 from camp_match.modules.media.domain.value_objects import MediaPurpose
 from camp_match.modules.security.domain.value_objects import Permission
-from camp_match.platform.security.authentication import get_current_identity_id
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from camp_match.platform.security.authentication import decode_access_token_string, get_current_identity_id
+
+security_scheme = HTTPBearer(auto_error=False)
+
+
+async def get_current_identity_id_optional(
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security_scheme)],
+) -> EntityId | None:
+    if not credentials or credentials.scheme.lower() != "bearer" or not credentials.credentials:
+        return None
+    try:
+        return await decode_access_token_string(credentials.credentials)
+    except Exception:
+        return None
 from camp_match.shared_kernel.application.errors import ForbiddenError
 from camp_match.shared_kernel.application.pagination import PageRequest
 from camp_match.shared_kernel.application.unit_of_work import UnitOfWork
@@ -73,9 +87,9 @@ class PageSchema(BaseModel, Generic[T]):
 router = APIRouter(prefix="/api/v1", tags=["housing"])
 
 
-async def _build_listing_media_response(listing_id: EntityId, listing_repo, get_access_uc=None):
+async def _build_listing_media_response(listing_id: EntityId, listing_repo: Any, get_access_uc: Any = None) -> list[dict[str, Any]]:
     media_models = await listing_repo.get_media_for_listing(listing_id)
-    media_list = []
+    media_list: list[dict[str, Any]] = []
     for item in media_models:
         if item.media_id:
             stream_path = f"/api/v1/media/{item.media_id}/stream"
@@ -98,7 +112,20 @@ async def _build_listing_media_response(listing_id: EntityId, listing_repo, get_
     return media_list
 
 
-def _build_listing_response(listing, media_list):
+def _build_listing_response(listing: Any, media_list: list[dict[str, Any]], is_saved: bool = False) -> schemas.ListingResponseSchema:
+    status_detail = None
+    if listing.status.value == "SUSPENDED":
+        reason = getattr(listing, "suspension_reason", None)
+        if reason == "OWNER_ACCOUNT_DISABLED":
+            status_detail = {
+                "code": "SUSPENDED_ACCOUNT",
+                "message": "This listing is hidden because your account is not active.",
+            }
+        else:
+            status_detail = {
+                "code": "SUSPENDED_SAFETY",
+                "message": "This listing was suspended following a safety review. Contact support if you have questions.",
+            }
     return schemas.ListingResponseSchema.model_validate({
         "id": listing.id.value,
         "property_id": listing.property_id.value,
@@ -111,7 +138,9 @@ def _build_listing_response(listing, media_list):
             "period": listing.price.period.value,
         },
         "status": listing.status.value,
+        "status_detail": status_detail,
         "media": media_list,
+        "is_saved": is_saved,
     })
 
 
@@ -317,13 +346,36 @@ async def create_listing(
 async def get_listing_detail(
     listing_id: UUID,
     listing_repo: Annotated[ListingRepository, Depends(dependencies.get_listing_repository)],
+    prop_repo: Annotated[PropertyRepository, Depends(dependencies.get_property_repository)],
+    saved_state_provider: Annotated[Any, Depends(dependencies.get_saved_state_provider)],
+    identity_id: Annotated[EntityId | None, Depends(get_current_identity_id_optional)],
+    auth: Annotated[InProcessAuthorizationService, Depends(dependencies.get_auth_service)],
     get_access_uc: Annotated[GetAuthorizedAccessUseCase, Depends(get_get_authorized_access)],
 ) -> schemas.ListingResponseSchema:
     listing = await GetListingUseCase(listing_repo)(EntityId(listing_id))
     if not listing:
         raise HTTPException(status_code=404, detail="Listing not found")
+
+    if listing.status.value == "SUSPENDED":
+        can_read = False
+        if identity_id:
+            prop = await prop_repo.get_by_id(listing.property_id)
+            if prop and prop.provider_id == identity_id:
+                can_read = True
+            else:
+                try:
+                    await auth.authorize(identity_id, Permission.HOUSING_SAFETY_SUSPEND)
+                    can_read = True
+                except Exception:
+                    pass
+        if not can_read:
+            raise HTTPException(status_code=404, detail="Listing not found")
+
+    saved_set = await saved_state_provider.get_saved_state(identity_id, [listing.id])
+    is_saved = listing.id in saved_set
+
     media_list = await _build_listing_media_response(listing.id, listing_repo, get_access_uc)
-    return _build_listing_response(listing, media_list)
+    return _build_listing_response(listing, media_list, is_saved=is_saved)
 
 
 @router.post("/listings/{listing_id}/media", response_model=schemas.ListingResponseSchema)

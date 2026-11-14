@@ -57,3 +57,24 @@
 - ADR-172: Live computation of overview metrics with no historical caching.
 - ADR-173: No customer ticket intake or staff reporting of safety issues in MVP.
 - ADR-174: No payment/booking exception views or background-job health monitoring beyond owners' backlogs.
+- ADR-212: Google sign-in is an ID-token exchange: the app obtains a Google ID token and sends it to POST /auth/google; the server verifies it. No server-side redirect flow, no Google API access, nothing from Google is stored except the stable identifier.
+- ADR-213: A new table identity_external_identities keyed by (provider, subject); the account is found by Google's sub, never by email.
+- ADR-214: Google sign-up is accepted only when email_verified is true and the address is @gmail.com or the token carries hd; otherwise 422 google_email_not_supported.
+- ADR-215: Verification uses google-auth's verify_oauth2_token (signature, expiry), then our own checks of audience, issuer, subject, and optional nonce; run off the event loop with a timeout; every failure maps to one 401 invalid_google_token.
+- ADR-216: password_hash becomes nullable. Password login on a passwordless account behaves exactly like an unknown email.
+- ADR-217: Google sign-up is one step; a new account publishes the same UserRegistered; the response adds is_new_account.
+- ADR-218: Collision rules: (a) sub already linked -> sign in; (b) email matches a verified account -> 409 account_exists; (c) email matches an unverified account -> Google claims it (password cleared, verified, linked, open codes invalidated); (d) no match -> create. Password registration over an unverified email replaces unverified credentials.
+- ADR-219: Authenticated link (POST /auth/google/link), unlink (DELETE /auth/google), and set password (POST /auth/password, only for passwordless accounts). Unlink is refused if it would leave no way to sign in.
+- ADR-220: Setting google_auth_backend: disabled / google / fake / both. Fake and both are refused outside local/test. Public GET /auth/google/config and local/test-only POST /dev/google-mock/token.
+- ADR-221: Email verification by OTP replaces ADR-018 for password sign-ups. New facts on the account: email_verified_at and email_verification_source (OTP/GOOGLE/LEGACY). Login is refused until verified.
+- ADR-222: Code: 6 digits from secrets, stored only as HMAC-SHA256, 10-minute life, one active code per account, 5 wrong attempts invalidate it, single use.
+- ADR-223: Anti-enumeration: resend-verification always returns the same 202; verify-email returns one generic 422 invalid_or_expired_code for every failure. Throttling applied silently.
+- ADR-224: New outbound port EmailSender; adapters LogEmailSender and SmtpEmailSender. Dev mailbox route in local/test only.
+- ADR-225: The code is emailed directly after commit in the use case, never through event outbox. Send failure never fails the request.
+- ADR-226: Login on an unverified account: after password and account status check pass, respond 403 email_not_verified and, best-effort and throttled, send a fresh code.
+- ADR-227: Accounts created or claimed through Google are verified at creation (source = GOOGLE).
+- ADR-228: Additive response changes: register gets email_verification_required; /auth/me gets email_verified and sign_in_methods; Google sign-in gets is_new_account.
+- ADR-229: Product switch identity_email_verification_required (default true); false allowed only in local/test.
+- ADR-230: Expired and used one-time codes are purged by Module 15's retention sweep.
+- ADR-231: No new domain events (no EmailVerified, no GoogleLinked); actions are logged.
+- ADR-232: ADR-020 remains open for password login; the new endpoints carry their own protections (ADR-222/223). Stated plainly in documentation.

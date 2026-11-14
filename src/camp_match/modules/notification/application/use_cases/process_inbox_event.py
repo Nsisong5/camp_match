@@ -76,7 +76,7 @@ class ProcessInboxEventUseCase:
                     async def get_owner_fn(prop_id: EntityId) -> EntityId | None:
                         return await self.property_owner_provider.get_owner(prop_id)
 
-                    drafts = await resolve_recipients(
+                    drafts, actions_to_resolve = await resolve_recipients(
                         row.event_type, row.payload, get_owner_fn
                     )
                 except Exception as parse_err:
@@ -92,6 +92,12 @@ class ProcessInboxEventUseCase:
                         error=str(parse_err),
                     )
                     return ProcessOutcome.REJECTED
+
+                # Step 2b: Resolve any target actions
+                for target_type, target_id, actions in actions_to_resolve:
+                    await self.notification_repo.resolve_actions(
+                        target_type, target_id, actions, now
+                    )
 
                 # Step 3 & 4: Create notifications and mark processed
                 for draft in drafts:

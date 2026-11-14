@@ -68,3 +68,16 @@ class InProcessHousingProvider(HousingProvider):
 
     async def release_slot(self, unit_id: EntityId) -> None:
         await self._availability_port.release_slot(unit_id)
+
+    async def list_suspended_listing_ids(
+        self, limit: int, after_id: EntityId | None
+    ) -> list[EntityId]:
+        return await self._listing_repo.list_suspended_ids(limit, after_id)
+
+    async def get_listing_suspension_reason(
+        self, listing_id: EntityId
+    ) -> str | None:
+        listing = await self._listing_repo.get_by_id(listing_id)
+        if not listing:
+            return None
+        return getattr(listing, "suspension_reason", None) or "SAFETY_ENFORCEMENT"

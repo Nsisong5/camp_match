@@ -21,7 +21,12 @@ logger = structlog.get_logger()
 
 
 class JwtAuthenticationSessionAdapter:
-    def __init__(self, session: "AsyncSession", settings: Settings, unit_of_work: UnitOfWork) -> None:
+    def __init__(
+        self,
+        session: "AsyncSession",
+        settings: Settings,
+        unit_of_work: UnitOfWork,
+    ) -> None:
         self._session = session
         self._settings = settings
         self._unit_of_work = unit_of_work
@@ -31,7 +36,7 @@ class JwtAuthenticationSessionAdapter:
         access_token = self._create_access_token(identity_id, now)
 
         refresh_token, token_model = await self._create_refresh_token(identity_id, now)
-        
+
         async with self._unit_of_work:
             self._session.add(token_model)
             await self._unit_of_work.commit()
@@ -82,10 +87,10 @@ class JwtAuthenticationSessionAdapter:
         identity_id = EntityId(token_model.account_id)
         access_token = self._create_access_token(identity_id, now)
         new_refresh_token, new_token_model = await self._create_refresh_token(identity_id, now)
-        
+
         # Link rotation
         token_model.replaced_by_id = new_token_model.id
-        
+
         async with self._unit_of_work:
             self._session.add(new_token_model)
             await self._unit_of_work.commit()
@@ -113,13 +118,11 @@ class JwtAuthenticationSessionAdapter:
 
     async def decode_access_token(self, access_token: str) -> EntityId:
         try:
-            payload = jwt.decode(
-                access_token, self._settings.jwt_secret_key, algorithms=["HS256"]
-            )
+            payload = jwt.decode(access_token, self._settings.jwt_secret_key, algorithms=["HS256"])
             if payload.get("type") != "access":
                 logger.warning("access_token_invalid_type", type=payload.get("type"))
                 raise InvalidCredentials("Invalid credentials.")
-            
+
             return EntityId.from_string(payload["sub"])
         except jwt.ExpiredSignatureError as e:
             logger.warning("access_token_expired")
@@ -137,7 +140,9 @@ class JwtAuthenticationSessionAdapter:
         }
         return jwt.encode(payload, self._settings.jwt_secret_key, algorithm="HS256")
 
-    async def _create_refresh_token(self, identity_id: EntityId, issued_at: datetime) -> tuple[str, RefreshTokenModel]:
+    async def _create_refresh_token(
+        self, identity_id: EntityId, issued_at: datetime
+    ) -> tuple[str, RefreshTokenModel]:
         refresh_token = secrets.token_urlsafe(48)
         refresh_token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
         expires_at = issued_at + timedelta(days=self._settings.refresh_token_expire_days)

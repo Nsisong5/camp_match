@@ -25,6 +25,7 @@ class GetOverviewUseCase:
         safety_source: Any,
         notification_source: Any,
         messaging_source: Any,
+        platform_runtime_provider: Any,
         issue_repo: Any,
         audit_repo: Any,
         authorizer: Any,
@@ -37,6 +38,7 @@ class GetOverviewUseCase:
         self._safety_source = safety_source
         self._notification_source = notification_source
         self._messaging_source = messaging_source
+        self._platform_runtime_provider = platform_runtime_provider
         self._issue_repo = issue_repo
         self._audit_repo = audit_repo
         self._authorizer = authorizer
@@ -190,6 +192,35 @@ class GetOverviewUseCase:
             "admin_actions", fetch_admin_actions
         )
 
+        async def fetch_background_jobs() -> dict[str, Any]:
+            jobs = await self._platform_runtime_provider.get_job_statuses()
+            job_dicts = []
+            unhealthy_count = 0
+            for j in jobs:
+                health = getattr(j, "health", "OK")
+                if health != "OK":
+                    unhealthy_count += 1
+                job_dicts.append({
+                    "name": getattr(j, "name", "unknown"),
+                    "health": health,
+                    "interval_seconds": getattr(j, "interval_seconds", 0),
+                    "last_finished_at": getattr(j, "last_finished_at", None),
+                    "consecutive_failures": getattr(j, "consecutive_failures", 0),
+                })
+            return {"jobs": job_dicts, "unhealthy": unhealthy_count}
+
+        background_jobs_sec = await run_section("background_jobs", fetch_background_jobs)
+
+        async def fetch_platform_events() -> dict[str, Any]:
+            stats = await self._platform_runtime_provider.get_outbox_stats()
+            return {
+                "pending": stats.get("pending", 0),
+                "dead": stats.get("dead", 0),
+                "oldest_pending_age_seconds": stats.get("oldest_pending_age_seconds", None),
+            }
+
+        platform_events_sec = await run_section("platform_events", fetch_platform_events)
+
         return OverviewView(
             verification=verification_sec,
             payments=payments_sec,
@@ -198,4 +229,6 @@ class GetOverviewUseCase:
             messaging=messaging_sec,
             issues=issues_sec,
             admin_actions=admin_actions_sec,
+            background_jobs=background_jobs_sec,
+            platform_events=platform_events_sec,
         )

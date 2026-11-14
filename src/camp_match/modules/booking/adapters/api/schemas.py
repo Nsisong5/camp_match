@@ -22,6 +22,11 @@ class PriceSnapshotSchema(BaseModel):
     period: str
 
 
+class ClosureSchema(BaseModel):
+    code: str
+    message: str
+
+
 class BookingResponseSchema(BaseModel):
     id: UUID
     student_id: UUID
@@ -41,6 +46,7 @@ class BookingResponseSchema(BaseModel):
     handover_offered_at: datetime | None = None
     handover_offered_by: UUID | None = None
     handover_accepted_at: datetime | None = None
+    closure: ClosureSchema | None = None
 
 
 T = TypeVar("T")

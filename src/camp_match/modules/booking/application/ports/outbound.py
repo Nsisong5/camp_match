@@ -44,6 +44,16 @@ class HousingProvider(Protocol):
     async def release_slot(self, unit_id: EntityId) -> None:
         ...
 
+    async def list_suspended_listing_ids(
+        self, limit: int, after_id: EntityId | None
+    ) -> list[EntityId]:
+        ...
+
+    async def get_listing_suspension_reason(
+        self, listing_id: EntityId
+    ) -> str | None:
+        ...
+
 
 class VerificationProvider(Protocol):
     async def get_verification_status(

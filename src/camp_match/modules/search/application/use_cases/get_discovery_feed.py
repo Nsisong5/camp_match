@@ -1,4 +1,10 @@
-from camp_match.modules.search.application.strategies.discovery_strategy import DiscoveryStrategy
+"""Get discovery feed use case."""
+
+from __future__ import annotations
+
+from camp_match.modules.search.application.strategies.discovery_strategy import (
+    DiscoveryStrategy,
+)
 from camp_match.modules.search.domain.value_objects import ScoredCandidate
 from camp_match.shared_kernel.application.pagination import Page, PageRequest
 from camp_match.shared_kernel.domain.identifiers import EntityId
@@ -8,9 +14,13 @@ class GetDiscoveryFeed:
     def __init__(self, strategies: dict[str, DiscoveryStrategy]):
         self._strategies = strategies
 
-    async def execute(self, identity_id: EntityId | None, strategy_type: str, page_request: PageRequest) -> Page[ScoredCandidate]:
+    async def execute(
+        self,
+        viewer_id: EntityId | None,
+        strategy_type: str,
+        page_request: PageRequest,
+    ) -> Page[ScoredCandidate]:
         strategy = self._strategies.get(strategy_type)
         if not strategy:
             raise ValueError(f"Unknown discovery strategy: {strategy_type}")
-            
-        return await strategy.get_feed(identity_id, page_request)
+        return await strategy.get_feed(viewer_id, page_request)

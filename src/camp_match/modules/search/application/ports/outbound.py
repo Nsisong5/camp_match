@@ -1,25 +1,54 @@
+"""Search outbound ports."""
+
+from __future__ import annotations
+
 from typing import Protocol
 
-from camp_match.modules.search.domain.value_objects import AccommodationType, Coordinates, EntityId
+from camp_match.modules.search.domain.value_objects import (
+    AccommodationType,
+    Coordinates,
+    EntityId,
+)
 
 
 class HousingProvider(Protocol):
     async def list_eligible_candidates(
-        self, campus_id: EntityId | None, accommodation_type: AccommodationType | None, max_price_kobo: int | None
+        self,
+        campus_id: EntityId | None,
+        accommodation_type: AccommodationType | None,
+        max_price_kobo: int | None,
     ) -> list:
         ...
 
+
 class UniversityLocationProvider(Protocol):
-    async def get_campus_coordinates(self, campus_id: EntityId) -> Coordinates | None:
+    async def get_campus_coordinates(
+        self, campus_id: EntityId
+    ) -> Coordinates | None:
         ...
 
-    async def get_main_campus_coordinates(self, university_id: EntityId) -> Coordinates | None:
+    async def get_main_campus_coordinates(
+        self, university_id: EntityId
+    ) -> Coordinates | None:
         ...
+
 
 class ProfileProvider(Protocol):
-    async def get_student_preferences(self, identity_id: EntityId) -> dict | None:
+    async def get_student_preferences(
+        self, identity_id: EntityId
+    ) -> dict | None:
         ...
 
+
 class VerificationProvider(Protocol):
-    async def get_verification_states(self, listing_ids: list[EntityId]) -> dict[EntityId, str]:
+    async def get_verification_states(
+        self, listing_ids: list[EntityId]
+    ) -> dict[EntityId, str]:
+        ...
+
+
+class SavedStateProvider(Protocol):
+    async def get_saved_state(
+        self, viewer_id: EntityId | None, listing_ids: list[EntityId]
+    ) -> set[EntityId]:
         ...

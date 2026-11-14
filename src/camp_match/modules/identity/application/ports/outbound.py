@@ -3,11 +3,20 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
-    from camp_match.modules.identity.domain.entities import UserAccount
-    from camp_match.modules.identity.domain.value_objects import EmailAddress
+    from camp_match.modules.identity.domain.entities import (
+        ExternalIdentity,
+        OneTimeCode,
+        UserAccount,
+    )
+    from camp_match.modules.identity.domain.value_objects import (
+        EmailAddress,
+        ExternalProvider,
+        OneTimeCodePurpose,
+    )
     from camp_match.shared_kernel.domain.identifiers import EntityId
 
 
@@ -17,6 +26,21 @@ class TokenPair:
     refresh_token: str
     token_type: str
     expires_in: int
+
+
+@dataclass(frozen=True)
+class EmailMessage:
+    to: str
+    subject: str
+    text: str
+
+
+@dataclass(frozen=True)
+class VerifiedGoogleIdentity:
+    subject: str
+    email: str
+    email_verified: bool
+    hosted_domain: str | None
 
 
 class IdentityRepository(Protocol):
@@ -35,6 +59,68 @@ class IdentityRepository(Protocol):
     async def update(self, account: UserAccount) -> None:
         """Persists state updates to an existing account."""
         ...
+
+
+class ExternalIdentityRepository(Protocol):
+    async def get_by_subject(
+        self, provider: ExternalProvider, subject: str
+    ) -> ExternalIdentity | None: ...
+
+    async def get_by_account(
+        self, account_id: EntityId, provider: ExternalProvider
+    ) -> list[ExternalIdentity]: ...
+
+    async def add(self, identity: ExternalIdentity) -> None: ...
+
+    async def remove(self, account_id: EntityId, provider: ExternalProvider) -> bool: ...
+
+    async def touch_last_login(self, identity_id: EntityId, now: datetime) -> None: ...
+
+    async def list_methods(self, account_id: EntityId) -> list[str]: ...
+
+
+class OneTimeCodeRepository(Protocol):
+    async def get_active(
+        self, account_id: EntityId, purpose: OneTimeCodePurpose
+    ) -> OneTimeCode | None: ...
+
+    async def add_replacing_active(self, code: OneTimeCode) -> None: ...
+
+    async def update(self, code: OneTimeCode) -> None: ...
+
+    async def count_issued_since(
+        self, account_id: EntityId, purpose: OneTimeCodePurpose, since: datetime
+    ) -> int: ...
+
+    async def latest_issued_at(
+        self, account_id: EntityId, purpose: OneTimeCodePurpose
+    ) -> datetime | None: ...
+
+    async def invalidate_all(
+        self, account_id: EntityId, purpose: OneTimeCodePurpose, now: datetime
+    ) -> None: ...
+
+
+class OneTimeCodeService(Protocol):
+    def generate(self) -> str: ...
+
+    def hash(self, account_id: EntityId, purpose: OneTimeCodePurpose, code: str) -> str: ...
+
+    def matches(
+        self,
+        account_id: EntityId,
+        purpose: OneTimeCodePurpose,
+        code: str,
+        code_hash: str,
+    ) -> bool: ...
+
+
+class EmailSender(Protocol):
+    async def send(self, message: EmailMessage) -> None: ...
+
+
+class GoogleIdentityVerifier(Protocol):
+    async def verify(self, id_token: str, nonce: str | None) -> VerifiedGoogleIdentity: ...
 
 
 class PasswordHasher(Protocol):

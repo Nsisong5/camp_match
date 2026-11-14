@@ -30,6 +30,13 @@ from camp_match.modules.admin_operations.adapters.persistence.audit_repository i
 from camp_match.modules.admin_operations.adapters.persistence.issue_repository import (
     SqlAlchemyIssueRepository,
 )
+from camp_match.modules.admin_operations.adapters.persistence.role_request_repository import (
+    SqlAlchemyRoleGrantRequestRepository,
+)
+from camp_match.modules.admin_operations.adapters.platform_runtime.provider import (
+    InProcessPlatformRecovery,
+    InProcessPlatformRuntimeProvider,
+)
 from camp_match.modules.admin_operations.adapters.recovery.notification_recovery import (
     InProcessNotificationRecovery,
 )
@@ -78,8 +85,23 @@ from camp_match.modules.admin_operations.application.use_cases.list_issues impor
 from camp_match.modules.admin_operations.application.use_cases.list_staff import (
     ListStaffUseCase,
 )
+from camp_match.modules.admin_operations.application.use_cases.list_staff_role_requests import (
+    ListStaffRoleRequestsUseCase,
+)
+from camp_match.modules.admin_operations.application.use_cases.approve_staff_role_grant import (
+    ApproveStaffRoleGrantUseCase,
+)
+from camp_match.modules.admin_operations.application.use_cases.reject_staff_role_grant import (
+    RejectStaffRoleGrantUseCase,
+)
 from camp_match.modules.admin_operations.application.use_cases.reactivate_account import (
     ReactivateAccountUseCase,
+)
+from camp_match.modules.admin_operations.application.use_cases.get_jobs import (
+    GetJobsUseCase,
+)
+from camp_match.modules.admin_operations.application.use_cases.requeue_dead_platform_events import (
+    RequeueDeadPlatformEventsUseCase,
 )
 from camp_match.modules.admin_operations.application.use_cases.requeue_dead_notification_events import (
     RequeueDeadNotificationEventsUseCase,
@@ -178,6 +200,12 @@ def get_issue_repo(
     session: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> SqlAlchemyIssueRepository:
     return SqlAlchemyIssueRepository(session)
+
+
+def get_uow(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> SqlAlchemyUnitOfWork:
+    return SqlAlchemyUnitOfWork(session)
 
 
 def get_audit_repo(
@@ -331,6 +359,7 @@ def get_overview_use_case(
     safety_source: Annotated[SafetySourceAdapter, Depends(get_safety_source)],
     notification_source: Annotated[NotificationSourceAdapter, Depends(get_notification_source)],
     messaging_source: Annotated[MessagingSourceAdapter, Depends(get_messaging_source)],
+    platform_runtime_provider: Annotated[InProcessPlatformRuntimeProvider, Depends(get_platform_runtime_provider)],
     issue_repo: Annotated[SqlAlchemyIssueRepository, Depends(get_issue_repo)],
     audit_repo: Annotated[SqlAlchemyAuditRepository, Depends(get_audit_repo)],
     authorizer: Annotated[InProcessAuthorizer, Depends(get_authorizer)],
@@ -343,6 +372,7 @@ def get_overview_use_case(
         safety_source,
         notification_source,
         messaging_source,
+        platform_runtime_provider,
         issue_repo,
         audit_repo,
         authorizer,
@@ -353,13 +383,12 @@ def get_overview_use_case(
 
 
 def get_create_issue_use_case(
-    issue_repo: Annotated[SqlAlchemyIssueRepository, Depends(get_issue_repo)],
     authorizer: Annotated[InProcessAuthorizer, Depends(get_authorizer)],
     request: Request,
     clock: Annotated[Any, Depends(get_clock)],
 ) -> CreateIssueUseCase:
     return CreateIssueUseCase(
-        issue_repo,
+        SqlAlchemyIssueRepository,
         authorizer,
         request.app.state.db_session_factory,
         clock,
@@ -381,13 +410,12 @@ def get_get_issue_use_case(
 
 
 def get_assign_issue_use_case(
-    issue_repo: Annotated[SqlAlchemyIssueRepository, Depends(get_issue_repo)],
     authorizer: Annotated[InProcessAuthorizer, Depends(get_authorizer)],
     request: Request,
     clock: Annotated[Any, Depends(get_clock)],
 ) -> AssignIssueUseCase:
     return AssignIssueUseCase(
-        issue_repo,
+        SqlAlchemyIssueRepository,
         authorizer,
         request.app.state.db_session_factory,
         clock,
@@ -395,13 +423,12 @@ def get_assign_issue_use_case(
 
 
 def get_change_issue_status_use_case(
-    issue_repo: Annotated[SqlAlchemyIssueRepository, Depends(get_issue_repo)],
     authorizer: Annotated[InProcessAuthorizer, Depends(get_authorizer)],
     request: Request,
     clock: Annotated[Any, Depends(get_clock)],
 ) -> ChangeIssueStatusUseCase:
     return ChangeIssueStatusUseCase(
-        issue_repo,
+        SqlAlchemyIssueRepository,
         authorizer,
         request.app.state.db_session_factory,
         clock,
@@ -446,6 +473,48 @@ def get_reactivate_account_use_case(
     )
 
 
+def get_role_grant_request_repo(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> SqlAlchemyRoleGrantRequestRepository:
+    return SqlAlchemyRoleGrantRequestRepository(session)
+
+
+def get_platform_runtime_provider(
+    request: Request,
+) -> InProcessPlatformRuntimeProvider:
+    return InProcessPlatformRuntimeProvider(
+        request.app.state.db_session_factory, get_clock(), get_settings()
+    )
+
+
+def get_platform_recovery(
+    request: Request,
+) -> InProcessPlatformRecovery:
+    return InProcessPlatformRecovery(
+        request.app.state.db_session_factory, get_clock()
+    )
+
+
+def get_get_jobs_use_case(
+    provider: Annotated[
+        InProcessPlatformRuntimeProvider, Depends(get_platform_runtime_provider)
+    ],
+    authorizer: Annotated[InProcessAuthorizer, Depends(get_authorizer)],
+) -> GetJobsUseCase:
+    return GetJobsUseCase(provider, authorizer)
+
+
+def get_requeue_dead_platform_events_use_case(
+    recovery: Annotated[InProcessPlatformRecovery, Depends(get_platform_recovery)],
+    authorizer: Annotated[InProcessAuthorizer, Depends(get_authorizer)],
+    audit_recorder: Annotated[AuditRecorder, Depends(get_audit_recorder)],
+    settings: Annotated[Any, Depends(get_settings)],
+) -> RequeueDeadPlatformEventsUseCase:
+    return RequeueDeadPlatformEventsUseCase(
+        recovery, authorizer, audit_recorder, settings
+    )
+
+
 def get_list_staff_use_case(
     staff_role_provider: Annotated[InProcessStaffRoleProvider, Depends(get_staff_role_provider)],
     authorizer: Annotated[InProcessAuthorizer, Depends(get_authorizer)],
@@ -456,16 +525,76 @@ def get_list_staff_use_case(
 def get_grant_staff_role_use_case(
     account_provider: Annotated[InProcessAccountProvider, Depends(get_account_provider)],
     staff_role_provider: Annotated[InProcessStaffRoleProvider, Depends(get_staff_role_provider)],
+    role_request_repo: Annotated[
+        SqlAlchemyRoleGrantRequestRepository,
+        Depends(get_role_grant_request_repo),
+    ],
     authorizer: Annotated[InProcessAuthorizer, Depends(get_authorizer)],
     audit_recorder: Annotated[AuditRecorder, Depends(get_audit_recorder)],
+    uow: Annotated[SqlAlchemyUnitOfWork, Depends(get_uow)],
+    clock: Annotated[Any, Depends(get_clock)],
+    settings: Annotated[Any, Depends(get_settings)],
 ) -> GrantStaffRoleUseCase:
     return GrantStaffRoleUseCase(
         account_provider,
         staff_role_provider,
+        role_request_repo,
         authorizer,
         audit_recorder,
-        get_settings(),
+        uow,
+        clock,
+        settings,
     )
+
+
+def get_approve_staff_role_grant_use_case(
+    role_request_repo: Annotated[
+        SqlAlchemyRoleGrantRequestRepository,
+        Depends(get_role_grant_request_repo),
+    ],
+    staff_role_provider: Annotated[
+        InProcessStaffRoleProvider, Depends(get_staff_role_provider)
+    ],
+    authorizer: Annotated[InProcessAuthorizer, Depends(get_authorizer)],
+    audit_recorder: Annotated[AuditRecorder, Depends(get_audit_recorder)],
+    uow: Annotated[SqlAlchemyUnitOfWork, Depends(get_uow)],
+    clock: Annotated[Any, Depends(get_clock)],
+    settings: Annotated[Any, Depends(get_settings)],
+) -> ApproveStaffRoleGrantUseCase:
+    return ApproveStaffRoleGrantUseCase(
+        role_request_repo,
+        staff_role_provider,
+        authorizer,
+        audit_recorder,
+        uow,
+        clock,
+        settings,
+    )
+
+
+def get_reject_staff_role_grant_use_case(
+    role_request_repo: Annotated[
+        SqlAlchemyRoleGrantRequestRepository,
+        Depends(get_role_grant_request_repo),
+    ],
+    authorizer: Annotated[InProcessAuthorizer, Depends(get_authorizer)],
+    uow: Annotated[SqlAlchemyUnitOfWork, Depends(get_uow)],
+    clock: Annotated[Any, Depends(get_clock)],
+    settings: Annotated[Any, Depends(get_settings)],
+) -> RejectStaffRoleGrantUseCase:
+    return RejectStaffRoleGrantUseCase(
+        role_request_repo, authorizer, uow, clock, settings
+    )
+
+
+def get_list_staff_role_requests_use_case(
+    role_request_repo: Annotated[
+        SqlAlchemyRoleGrantRequestRepository,
+        Depends(get_role_grant_request_repo),
+    ],
+    authorizer: Annotated[InProcessAuthorizer, Depends(get_authorizer)],
+) -> ListStaffRoleRequestsUseCase:
+    return ListStaffRoleRequestsUseCase(role_request_repo, authorizer)
 
 
 def get_revoke_staff_role_use_case(

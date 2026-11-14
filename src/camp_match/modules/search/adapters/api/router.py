@@ -1,3 +1,5 @@
+"""Router for search module."""
+
 from __future__ import annotations
 
 from typing import Annotated
@@ -14,8 +16,12 @@ from camp_match.modules.search.adapters.api.schemas import (
     SearchPageSchema,
     SearchRequestSchema,
 )
-from camp_match.modules.search.application.use_cases.get_discovery_feed import GetDiscoveryFeed
-from camp_match.modules.search.application.use_cases.search_listings import SearchListings
+from camp_match.modules.search.application.use_cases.get_discovery_feed import (
+    GetDiscoveryFeed,
+)
+from camp_match.modules.search.application.use_cases.search_listings import (
+    SearchListings,
+)
 from camp_match.modules.search.domain.value_objects import SearchCriteria
 from camp_match.shared_kernel.application.pagination import PageRequest
 from camp_match.shared_kernel.domain.identifiers import EntityId
@@ -25,10 +31,18 @@ security_scheme = HTTPBearer(auto_error=False)
 
 
 async def get_current_identity_id_optional(
-    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(security_scheme)],
-    auth: Annotated[JwtAuthenticationSessionAdapter, Depends(get_auth_session)] = ...,  # type: ignore
+    credentials: Annotated[
+        HTTPAuthorizationCredentials | None, Depends(security_scheme)
+    ],
+    auth: Annotated[
+        JwtAuthenticationSessionAdapter, Depends(get_auth_session)
+    ] = ...,  # type: ignore
 ) -> EntityId | None:
-    if not credentials or credentials.scheme.lower() != "bearer" or not credentials.credentials:
+    if (
+        not credentials
+        or credentials.scheme.lower() != "bearer"
+        or not credentials.credentials
+    ):
         return None
     try:
         return await auth.decode_access_token(credentials.credentials)
@@ -41,9 +55,16 @@ async def search_listings(
     request: SearchRequestSchema = Depends(),
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    use_case: SearchListings = Depends(dependencies.get_search_listings_use_case),
+    viewer_id: Annotated[
+        EntityId | None, Depends(get_current_identity_id_optional)
+    ] = None,
+    use_case: SearchListings = Depends(
+        dependencies.get_search_listings_use_case
+    ),
 ):
-    campus_entity_id = EntityId.from_string(request.campus_id) if request.campus_id else None
+    campus_entity_id = (
+        EntityId.from_string(request.campus_id) if request.campus_id else None
+    )
     criteria = SearchCriteria(
         campus_id=campus_entity_id,
         min_price_kobo=request.min_price_kobo,
@@ -56,7 +77,7 @@ async def search_listings(
         sort_by=request.sort_by,
     )
     page_req = PageRequest(page=page, page_size=page_size)
-    page_result = await use_case.execute(criteria, page_req)
+    page_result = await use_case.execute(criteria, page_req, viewer_id)
 
     response_items = []
     for sc in page_result.items:
@@ -86,6 +107,7 @@ async def search_listings(
                 score=sc.score,
                 distance_km=sc.distance_km,
                 verification_state=sc.verification_state,
+                is_saved=sc.is_saved,
             )
         )
     return schemas.SearchPageSchema(
@@ -101,8 +123,12 @@ async def get_discovery_feed(
     strategy_type: str,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    identity_id: Annotated[EntityId | None, Depends(get_current_identity_id_optional)] = None,
-    use_case: GetDiscoveryFeed = Depends(dependencies.get_discovery_feed_use_case),
+    identity_id: Annotated[
+        EntityId | None, Depends(get_current_identity_id_optional)
+    ] = None,
+    use_case: GetDiscoveryFeed = Depends(
+        dependencies.get_discovery_feed_use_case
+    ),
 ):
     page_req = PageRequest(page=page, page_size=page_size)
     try:
@@ -138,6 +164,7 @@ async def get_discovery_feed(
                 score=sc.score,
                 distance_km=sc.distance_km,
                 verification_state=sc.verification_state,
+                is_saved=sc.is_saved,
             )
         )
     return schemas.SearchPageSchema(

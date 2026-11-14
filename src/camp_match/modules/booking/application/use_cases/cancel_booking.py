@@ -57,7 +57,9 @@ class CancelBookingUseCase:
 
         # Dual-path authorization
         is_student_owner = request.caller_id == booking.student_id
-        if not is_student_owner:
+        if is_student_owner:
+            closure_code = "STUDENT_CANCELLED"
+        else:
             provider_id = await self.housing_provider.get_property_owner(booking.property_id)
             try:
                 await self.authorization_service.authorize(
@@ -65,6 +67,10 @@ class CancelBookingUseCase:
                 )
             except ForbiddenError:
                 raise ForbiddenError("Caller is neither booking student nor property owner.")
+            if request.caller_id == provider_id:
+                closure_code = "PROVIDER_CANCELLED"
+            else:
+                closure_code = "STAFF_CANCELLED"
 
         now = self.clock.now()
         async with self.uow:
@@ -73,21 +79,23 @@ class CancelBookingUseCase:
                 cancelled_at=now,
                 cancelled_by=request.caller_id,
                 cancellation_reason=request.cancellation_reason.strip(),
+                closure_code=closure_code,
             )
+            if matched:
+                event = BookingCancelled(
+                    event_id=EntityId.new(),
+                    occurred_at=now,
+                    booking_id=booking.id,
+                    student_id=booking.student_id,
+                    property_id=booking.property_id,
+                    listing_id=booking.listing_id,
+                    cancelled_by=request.caller_id,
+                )
+                self.uow.add_event(event)
             await self.uow.commit()
 
         if matched:
             await self.housing_provider.release_slot(booking.unit_id)
-            event = BookingCancelled(
-                event_id=EntityId.new(),
-                occurred_at=now,
-                booking_id=booking.id,
-                student_id=booking.student_id,
-                property_id=booking.property_id,
-                listing_id=booking.listing_id,
-                cancelled_by=request.caller_id,
-            )
-            await publish_best_effort(self.event_bus, event, logger)
             logger.info(
                 "booking_cancelled",
                 booking_id=booking.id,

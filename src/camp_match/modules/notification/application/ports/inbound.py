@@ -8,6 +8,7 @@ from typing import Any, Protocol, runtime_checkable
 
 from camp_match.modules.notification.domain.value_objects import (
     InboxStatus,
+    NotificationAction,
     NotificationCategory,
 )
 from camp_match.shared_kernel.application.pagination import Page, PageRequest
@@ -45,11 +46,15 @@ class NotificationView:
     read_at: datetime | None
     created_at: datetime
     latest_event_at: datetime
+    action: NotificationAction | None
+    action_required: bool
+    resolved_at: datetime | None
 
 
 @dataclass(frozen=True, slots=True)
 class UnreadCountResult:
     unread_count: int
+    action_required_count: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,6 +75,7 @@ class ListNotificationsRequest:
     actor_id: EntityId
     unread_only: bool | None = None
     category: NotificationCategory | None = None
+    action_required: bool | None = None
     page_request: PageRequest = PageRequest(page=1, page_size=20)
 
 

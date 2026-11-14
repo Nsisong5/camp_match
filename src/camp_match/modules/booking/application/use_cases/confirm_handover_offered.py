@@ -1,18 +1,26 @@
+"""Confirm handover offered use case."""
 from __future__ import annotations
 
 import structlog
 
 from camp_match.modules.booking.application.errors import BookingNotFound
-from camp_match.modules.booking.application.ports.inbound import ConfirmHandoverOfferedRequest
+from camp_match.modules.booking.application.ports.inbound import (
+    ConfirmHandoverOfferedRequest,
+)
 from camp_match.modules.booking.application.ports.outbound import (
     AuthorizationService,
     BookingRepository,
     HousingProvider,
 )
+from camp_match.modules.booking.domain.events import HandoverOffered
 from camp_match.modules.security.domain.value_objects import Permission
-from camp_match.shared_kernel.application.errors import ForbiddenError, ValidationError
+from camp_match.shared_kernel.application.errors import (
+    ForbiddenError,
+    ValidationError,
+)
 from camp_match.shared_kernel.application.unit_of_work import UnitOfWork
 from camp_match.shared_kernel.domain.clock import Clock
+from camp_match.shared_kernel.domain.identifiers import EntityId
 
 logger = structlog.get_logger()
 
@@ -37,13 +45,19 @@ class ConfirmHandoverOfferedUseCase:
         if not booking:
             raise BookingNotFound("Booking not found.")
 
-        provider_id = await self.housing_provider.get_property_owner(booking.property_id)
+        provider_id = await self.housing_provider.get_property_owner(
+            booking.property_id
+        )
         try:
             await self.authorization_service.authorize(
-                request.caller_id, Permission.HOUSING_MANAGE, resource_owner_id=provider_id
+                request.caller_id,
+                Permission.HOUSING_MANAGE,
+                resource_owner_id=provider_id,
             )
         except ForbiddenError:
-            raise ForbiddenError("Only the property owner can confirm handover offered.")
+            raise ForbiddenError(
+                "Only the property owner can confirm handover offered."
+            )
 
         if booking.status.value != "CONFIRMED":
             raise ValidationError("Booking must be confirmed to offer handover.")
@@ -53,6 +67,17 @@ class ConfirmHandoverOfferedUseCase:
             matched = await self.booking_repo.confirm_handover_offered(
                 booking.id, offered_at=now, offered_by=request.caller_id
             )
+            if matched:
+                event = HandoverOffered(
+                    event_id=EntityId.new(),
+                    occurred_at=now,
+                    booking_id=booking.id,
+                    student_id=booking.student_id,
+                    property_id=booking.property_id,
+                    listing_id=booking.listing_id,
+                    offered_by=request.caller_id,
+                )
+                self.uow.add_event(event)
             await self.uow.commit()
 
         if matched:
@@ -62,4 +87,6 @@ class ConfirmHandoverOfferedUseCase:
                 caller_id=request.caller_id,
             )
         else:
-            raise ValidationError("Handover has already been offered or booking state changed.")
+            raise ValidationError(
+                "Handover has already been offered or booking state changed."
+            )

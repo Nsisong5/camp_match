@@ -1,0 +1,1 @@
+"""Saved listings adapters package."""

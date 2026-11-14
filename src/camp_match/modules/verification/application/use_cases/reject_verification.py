@@ -86,14 +86,13 @@ class RejectVerificationUseCase:
                 actor_id=request.caller_id,
                 details=f"Verification rejected: {request.reason}",
             )
+            event = VerificationDecisionRecorded(
+                event_id=EntityId.new(),
+                occurred_at=datetime.now(UTC),
+                case_id=case.id,
+                target_type=case.target_type,
+                target_id=case.target_id,
+                decision="REJECTED",
+            )
+            self.uow.add_event(event)
             await self.uow.commit()
-
-        event = VerificationDecisionRecorded(
-            event_id=EntityId.new(),
-            occurred_at=datetime.now(UTC),
-            case_id=case.id,
-            target_type=case.target_type,
-            target_id=case.target_id,
-            decision="REJECTED",
-        )
-        await publish_best_effort(self.event_bus, event, logger)

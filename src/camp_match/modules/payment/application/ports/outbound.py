@@ -27,6 +27,7 @@ class BookingSummary:
     status: str
     student_id: EntityId
     property_id: EntityId
+    listing_id: EntityId
     amount_kobo: int
     currency: str
     period: str

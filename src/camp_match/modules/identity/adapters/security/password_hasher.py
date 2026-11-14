@@ -1,4 +1,5 @@
 """Implementation of PasswordHasher using scrypt."""
+
 import base64
 import hashlib
 import hmac
@@ -29,14 +30,14 @@ class ScryptPasswordHasher:
         parts = encoded_hash.split("$")
         if len(parts) != 4 or parts[0] != "scrypt":
             return False
-        
+
         params = parts[1].split(",")
         n = int(params[0].split("=")[1])
         r = int(params[1].split("=")[1])
         p = int(params[2].split("=")[1])
         salt = base64.b64decode(parts[2])
         stored_key = base64.b64decode(parts[3])
-        
+
         derived_key = hashlib.scrypt(
             raw_password.encode(),
             salt=salt,
@@ -45,5 +46,5 @@ class ScryptPasswordHasher:
             p=p,
             dklen=32,
         )
-        
+
         return hmac.compare_digest(derived_key, stored_key)

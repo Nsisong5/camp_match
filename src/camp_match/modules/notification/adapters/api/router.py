@@ -50,6 +50,9 @@ def _to_response(v: NotificationView) -> NotificationResponse:
         read_at=v.read_at,
         created_at=v.created_at,
         latest_event_at=v.latest_event_at,
+        action=v.action,
+        action_required=v.action_required,
+        resolved_at=v.resolved_at,
     )
 
 
@@ -64,6 +67,7 @@ async def list_notifications(
     page_size: int = Query(20, ge=1, le=100),
     unread_only: bool | None = None,
     category: NotificationCategory | None = None,
+    action_required: bool | None = None,
 ) -> PageSchema[NotificationResponse]:
     page_req = PageRequest(page=page, page_size=page_size)
     page_result = await list_uc.execute(
@@ -71,6 +75,7 @@ async def list_notifications(
             actor_id=actor_id,
             unread_only=unread_only,
             category=category,
+            action_required=action_required,
             page_request=page_req,
         )
     )
@@ -92,7 +97,10 @@ async def get_unread_count(
     ],
 ) -> UnreadCountResponse:
     res = await count_uc.execute(GetUnreadCountRequest(actor_id=actor_id))
-    return UnreadCountResponse(unread_count=res.unread_count)
+    return UnreadCountResponse(
+        unread_count=res.unread_count,
+        action_required_count=res.action_required_count,
+    )
 
 
 @router.post("/{notification_id}/read", response_model=NotificationResponse)

@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
 from camp_match.modules.notification.domain.value_objects import (
+    NotificationAction,
     NotificationCategory,
     NotificationTarget,
     NotificationType,
@@ -27,6 +28,8 @@ class Notification:
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     latest_event_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     read_at: datetime | None = None
+    action: NotificationAction | None = None
+    resolved_at: datetime | None = None
 
     def __post_init__(self) -> None:
         if self.category != self.type.category:
@@ -52,12 +55,27 @@ class Notification:
         if len(self.body) > 300:
             raise ValueError("Body exceeds maximum length of 300 characters.")
 
+        if self.action is not None and self.target is None:
+            raise ValueError("Action requires a target.")
+        if self.resolved_at is not None and self.action is None:
+            raise ValueError("resolved_at can only be set when action is set.")
+
     @property
     def is_read(self) -> bool:
         return self.read_at is not None
+
+    @property
+    def action_required(self) -> bool:
+        return self.action is not None and self.resolved_at is None
 
     def mark_read(self, now: datetime | None = None) -> bool:
         if self.read_at is not None:
             return False
         self.read_at = now or datetime.now(UTC)
+        return True
+
+    def resolve(self, now: datetime | None = None) -> bool:
+        if self.action is None or self.resolved_at is not None:
+            return False
+        self.resolved_at = now or datetime.now(UTC)
         return True

@@ -1,6 +1,10 @@
+"""Identity module domain value objects and enums."""
+
+from __future__ import annotations
+
 import re
 from dataclasses import dataclass
-from enum import Enum, auto
+from enum import Enum, StrEnum, auto
 
 
 @dataclass(frozen=True)
@@ -30,3 +34,30 @@ class AccountStatus(Enum):
     ACTIVE = auto()
     SUSPENDED = auto()
     DISABLED = auto()
+
+
+class EmailVerificationSource(StrEnum):
+    """Source by which an email address was verified."""
+
+    OTP = "OTP"
+    GOOGLE = "GOOGLE"
+    LEGACY = "LEGACY"
+
+
+class SignInMethod(StrEnum):
+    """Available sign-in methods for an account."""
+
+    PASSWORD = "PASSWORD"
+    GOOGLE = "GOOGLE"
+
+
+class OneTimeCodePurpose(StrEnum):
+    """Purpose of a one-time code."""
+
+    EMAIL_VERIFICATION = "EMAIL_VERIFICATION"
+
+
+class ExternalProvider(StrEnum):
+    """External identity providers."""
+
+    GOOGLE = "GOOGLE"

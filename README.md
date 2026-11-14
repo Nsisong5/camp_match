@@ -7,6 +7,16 @@ Camp Match backend — modular monolith, hexagonal architecture. Under construct
 - Run one layer: `poetry run pytest -m unit` (also `integration`, `api`, `architecture`)
 - Run a single file: `poetry run pytest tests/api/test_health.py`
 
+## Module 17: Email Verification & Google Sign-In Setup
+- **Email Verification**: Enabled by default (`IDENTITY_EMAIL_VERIFICATION_REQUIRED=true`). For local/test environments, set `EMAIL_BACKEND=log` to inspect verification codes via `GET /api/v1/dev/mailbox?to=<email>`.
+- **Google Sign-In**: Configure `GOOGLE_AUTH_BACKEND` in `.env`:
+  - `GOOGLE_AUTH_BACKEND="both"` (enables both real Google ID tokens and local mock tokens).
+  - `GOOGLE_AUTH_BACKEND="fake"` (mock only, local/test only).
+  - `GOOGLE_AUTH_BACKEND="google"` (real Google only).
+  - `GOOGLE_AUTH_BACKEND="disabled"` (default).
+  - Set `GOOGLE_OAUTH_CLIENT_IDS="your-client-id.apps.googleusercontent.com"`.
+- **Google Cloud Setup**: In Google Cloud Console, configure an OAuth client ID (Web application) with authorized JavaScript origins matching your frontend.
+
 ## Code Quality
 - Linting: `poetry run ruff check .`
 - Formatting: `poetry run ruff format .`

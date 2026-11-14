@@ -21,6 +21,7 @@ class ListNotificationsUseCase:
             recipient_id=request.actor_id,
             unread_only=request.unread_only,
             category=request.category,
+            action_required=request.action_required,
             page_request=request.page_request,
         )
 
@@ -42,6 +43,9 @@ class ListNotificationsUseCase:
                     read_at=n.read_at,
                     created_at=n.created_at,
                     latest_event_at=n.latest_event_at,
+                    action=n.action,
+                    action_required=n.action_required,
+                    resolved_at=n.resolved_at,
                 )
             )
 

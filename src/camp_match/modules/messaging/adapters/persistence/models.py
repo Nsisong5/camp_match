@@ -128,3 +128,11 @@ class MessagingRestrictionModel(Base):
             postgresql_where=text("status = 'ACTIVE'"),
         ),
     )
+
+
+class PlatformRateLimitModel(Base):
+    __tablename__ = "platform_rate_limits"
+
+    key: Mapped[str] = mapped_column(String, primary_key=True)
+    window_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), primary_key=True)
+    count: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("1"))

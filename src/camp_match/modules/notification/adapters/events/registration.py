@@ -8,15 +8,24 @@ from camp_match.modules.booking.domain.events import (
     BookingConfirmed,
     BookingCreated,
     BookingExpired,
+    BookingInvalidated,
+    BookingReminderDue,
+    HandoverAccepted,
+    HandoverOffered,
+)
+from camp_match.modules.housing.domain.events import (
+    ListingSuspended,
+    ListingSuspensionLifted,
 )
 from camp_match.modules.messaging.domain.events import MessageCreated
 from camp_match.modules.notification.adapters.events.subscribers import (
     create_handler,
 )
-from camp_match.modules.verification.domain.events import VerificationDecisionRecorded
+from camp_match.modules.payment.domain.events import PaymentOutcomeRecorded
 from camp_match.modules.trust_safety.application.ports.events import (
     SafetyUpdatePublished,
 )
+from camp_match.modules.verification.domain.events import VerificationDecisionRecorded
 from camp_match.shared_kernel.application.event_bus import EventBus
 
 
@@ -38,6 +47,13 @@ def register_notification_subscribers(
         BookingConfirmed,
         BookingCancelled,
         BookingExpired,
+        BookingInvalidated,
+        HandoverOffered,
+        HandoverAccepted,
+        BookingReminderDue,
+        ListingSuspended,
+        ListingSuspensionLifted,
+        PaymentOutcomeRecorded,
         VerificationDecisionRecorded,
         SafetyUpdatePublished,
     ]:

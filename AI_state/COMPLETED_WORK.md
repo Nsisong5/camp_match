@@ -1,10 +1,8 @@
-# Completed Work
 - Implemented Module 12 Notification module end-to-end.
 - Implemented Module 13 Trust & Safety module end-to-end.
-- Implemented Module 14 Admin & Operations module (Chunks 1–15 complete):
-  - Database schema, audit and issue history models, and immutable history triggers.
-  - Domain entities, rules, policies, and use cases (Audit recorder, account disable/reactivate, staff roles management, issue tracking, recovery operations, overview aggregation).
-  - FastAPI adapters, routers, security permission guards, and dependency injection.
-  - Retirement of unaudited Identity admin routes and replacement with audited Admin & Operations account endpoints.
-  - Comprehensive reliability & concurrency integration test suite (`tests/integration/admin_operations/test_reliability.py`), verified across multiple consecutive test runs.
-  - All MVP modules specified and implemented successfully.
+- Implemented Module 14 Admin & Operations module end-to-end.
+- Implemented Module 15 Platform Reliability module end-to-end.
+- Implemented Module 16 Saved Listings module end-to-end.
+- Implemented Module 17 Google Sign-In & Email Verification module end-to-end (Chunks 1 through 16 complete: Domain model updates, OTP email verification, secure one-time codes, log/SMTP email senders, Google sign-in with real/fake/composite verifiers, linking/unlinking, password management, Alembic migration with backfill, API endpoints, retention sweep integration, comprehensive unit/integration/API/architecture test suites, manual testing guide, frontend API docs, ADR-212 to ADR-232, and documentation).
+- Fixed payment and task notification failure by updating `ConfirmBookingUseCase` authorization to permit booking confirmation by the student owner upon payment verification.
+- Fixed real Google Sign-In verification failure in `GoogleIdTokenVerifier` (correcting audience argument handling per ADR-215, adding stage-specific structured logging, and adding comprehensive unit tests with locally signed RSA test tokens).

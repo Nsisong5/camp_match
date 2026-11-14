@@ -19,7 +19,7 @@ from camp_match.modules.admin_operations.domain.value_objects import (
 
 
 class BaseSchema(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", from_attributes=True)
 
     @field_validator("*", mode="before")
     @classmethod
@@ -166,3 +166,27 @@ class ReasonSchema(BaseSchema):
 class GrantRoleSchema(BaseSchema):
     role: str
     reason: str
+
+
+class RoleGrantRequestResponse(BaseSchema):
+    id: UUID
+    target_identity_id: UUID
+    role: str
+    requested_by: UUID
+    reason: str
+    status: str
+    decided_by: UUID | None
+    decided_at: datetime | None
+    decision_reason: str | None
+    created_at: datetime
+    expires_at: datetime
+
+
+class JobStatusResponse(BaseSchema):
+    name: str
+    health: str
+    interval_seconds: int
+    last_finished_at: datetime | None
+    consecutive_failures: int
+    last_summary: str | None = None
+    last_error: str | None = None

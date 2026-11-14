@@ -2,7 +2,7 @@
 """Housing inbound ports."""
 
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Any, Protocol
 
 from camp_match.modules.housing.domain.value_objects import PropertyType
 from camp_match.shared_kernel.domain.identifiers import EntityId
@@ -154,6 +154,28 @@ class SuspendListingForSafety(Protocol):
 
 class LiftListingSuspension(Protocol):
     async def __call__(self, command: LiftListingSuspensionCommand) -> None:
+        ...
+
+
+@dataclass(frozen=True)
+class ListingSavingInfoResponse:
+    owner_id: EntityId
+    is_public: bool
+
+
+@dataclass(frozen=True)
+class HousingListingCard:
+    state: str  # "AVAILABLE" | "FULLY_BOOKED" | "UNAVAILABLE"
+    data: dict[str, Any] | None = None
+
+
+class GetListingForSaving(Protocol):
+    async def __call__(self, listing_id: EntityId) -> ListingSavingInfoResponse | None:
+        ...
+
+
+class GetListingCards(Protocol):
+    async def __call__(self, listing_ids: list[EntityId]) -> dict[EntityId, HousingListingCard]:
         ...
 
 

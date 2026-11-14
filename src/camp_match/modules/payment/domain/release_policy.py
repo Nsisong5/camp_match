@@ -32,8 +32,8 @@ def evaluate_release_eligibility(
     if fund_disposition is None:
         return ReleaseEvaluation(eligible=False, blocking_reason="payment_not_confirmed")
 
-    if booking_summary is None or booking_summary.status == "CANCELLED":
-        return ReleaseEvaluation(eligible=False, blocking_reason="booking_cancelled")
+    if booking_summary is None or booking_summary.status != "CONFIRMED":
+        return ReleaseEvaluation(eligible=False, blocking_reason="booking_not_confirmed")
 
     if handover_status is None or handover_status.offered_at is None:
         return ReleaseEvaluation(eligible=False, blocking_reason="handover_not_offered")

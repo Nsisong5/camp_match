@@ -134,14 +134,17 @@ class ProposeEnforcementUseCase:
                 actor_id=request.actor_id,
                 details={"action_id": str(action_id), "action_type": request.action_type.value},
             )
-            await self._uow.commit()
-
-        if is_warning:
-            try:
-                await self._event_bus.publish(
-                    SafetyUpdatePublished(report_id=action_id, update_type="WARNING_ISSUED")
+            if is_warning:
+                case = await self._case_repo.get(request.case_id)
+                recipient = case.reporter_id if case else request.actor_id
+                self._uow.add_event(
+                    SafetyUpdatePublished(
+                        recipient_id=recipient,
+                        kind=SafetyUpdateKind.WARNING_ISSUED,
+                        reference_type="ENFORCEMENT",
+                        reference_id=action_id,
+                    )
                 )
-            except Exception:
-                pass
+            await self._uow.commit()
 
         return action_id

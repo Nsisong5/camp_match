@@ -18,6 +18,7 @@ class InProcessBookingProvider(BookingProvider):
             status=booking.status.value,
             student_id=booking.student_id,
             property_id=booking.property_id,
+            listing_id=booking.listing_id,
             amount_kobo=booking.price.amount_kobo,
             currency=booking.price.currency.value,
             period=booking.price.period.value,
