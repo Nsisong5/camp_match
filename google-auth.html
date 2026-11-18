@@ -1,0 +1,1096 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Camp Match - Google Authentication Test</title>
+
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 20px;
+      background: #f3f4f6;
+      color: #202124;
+      font-family: Arial, sans-serif;
+    }
+
+    .container {
+      max-width: 850px;
+      margin: 25px auto;
+      background: white;
+      padding: 25px;
+      border-radius: 12px;
+      box-shadow: 0 3px 15px rgba(0,0,0,.08);
+    }
+
+    h1 {
+      margin-top: 0;
+      font-size: 25px;
+    }
+
+    h2 {
+      font-size: 18px;
+      margin-top: 28px;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 8px;
+    }
+
+    p {
+      line-height: 1.5;
+    }
+
+    input, button {
+      width: 100%;
+      padding: 12px;
+      margin: 7px 0;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    input {
+      border: 1px solid #ccc;
+    }
+
+    button {
+      border: 0;
+      background: #1a73e8;
+      color: white;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    button:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+    }
+
+    .mock-button {
+      background: #5f6368;
+    }
+
+    .secondary-button {
+      background: #188038;
+    }
+
+    .status {
+      padding: 13px;
+      margin: 12px 0;
+      border-radius: 6px;
+      background: #f1f3f4;
+      overflow-wrap: anywhere;
+    }
+
+    .success {
+      background: #e6f4ea;
+      color: #137333;
+    }
+
+    .error {
+      background: #fce8e6;
+      color: #c5221f;
+    }
+
+    .warning {
+      background: #fef7e0;
+      color: #8a5700;
+    }
+
+    .info {
+      background: #e8f0fe;
+      color: #174ea6;
+    }
+
+    pre {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      background: #202124;
+      color: #e8eaed;
+      padding: 14px;
+      border-radius: 6px;
+      overflow-x: auto;
+      font-size: 12px;
+    }
+
+    .section {
+      margin-top: 25px;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .small {
+      font-size: 12px;
+      color: #666;
+    }
+
+    #googleButton {
+      margin: 15px 0;
+    }
+
+    .token-box {
+      max-height: 180px;
+      overflow-y: auto;
+      word-break: break-all;
+    }
+
+    .copy-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin: 8px 0 16px;
+    }
+
+    .copy-actions button { margin: 0; }
+    .copy-button { background: #188038; }
+    .copy-button:disabled { background: #9aa0a6; }
+
+    @media (max-width: 520px) {
+      .copy-actions { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+
+<body>
+<div class="container">
+
+  <h1>Camp Match - Google Sign-In Diagnostic</h1>
+
+  <p>
+    This page tests the real Google authentication flow and the
+    development mock flow against the Camp Match backend.
+  </p>
+
+  <div id="mainStatus" class="status info">
+    Initializing authentication diagnostics...
+  </div>
+
+  <h2>1. Backend configuration</h2>
+
+  <div id="configStatus" class="status">
+    Waiting for backend configuration...
+  </div>
+
+  <button id="refreshConfig" class="secondary-button">
+    Refresh backend configuration
+  </button>
+
+  <h2>2. Real Google sign-in</h2>
+
+  <p class="small">
+    This uses Google's official Identity Services interface.
+    It requires a valid Web OAuth Client ID and an authorized
+    JavaScript origin.
+  </p>
+
+  <div id="googleStatus" class="status">
+    Waiting for Google configuration...
+  </div>
+
+  <div id="googleButton"></div>
+
+  <h2>3. Mock Google sign-in (development only)</h2>
+
+  <p class="small">
+    This uses the backend's development mock-token endpoint.
+    It does not contact Google and must only be available in
+    local/test environments.
+  </p>
+
+  <input
+    id="mockEmail"
+    type="email"
+    placeholder="Mock Google email, e.g. student@gmail.com"
+    value="student7@gmail.com"
+  >
+
+  <input
+    id="mockHostedDomain"
+    type="text"
+    placeholder="Optional Workspace domain, e.g. school.edu"
+  >
+
+  <button id="mockButton" class="mock-button" disabled>
+    Mock Google Sign-In
+  </button>
+
+  <h2>4. Google credential received</h2>
+
+  <div id="credentialStatus" class="status">
+    No credential received yet.
+  </div>
+
+  <div id="tokenSection" class="hidden">
+    <p><strong>Complete ID token received from Google:</strong></p>
+    <pre id="tokenOutput" class="token-box"></pre>
+
+    <div class="copy-actions">
+      <button id="copyTokenButton" class="copy-button" disabled>Copy ID Token</button>
+      <button id="copyNonceButton" class="copy-button" disabled>Copy Nonce</button>
+    </div>
+
+    <p><strong>Nonce used for this Google sign-in:</strong></p>
+    <pre id="nonceOutput" class="token-box">No nonce available yet.</pre>
+
+    <p class="small">
+      This is a sensitive authentication credential. Do not share
+      it or publish it. The page does not save it to local storage
+      or send it to any destination other than the configured
+      Camp Match authentication endpoint.
+    </p>
+  </div>
+
+  <h2>5. Local token inspection</h2>
+
+  <div id="inspectionStatus" class="status">
+    No token inspected yet.
+  </div>
+
+  <pre id="claimsOutput">No claims available.</pre>
+
+  <h2>6. Backend request</h2>
+
+  <div id="requestStatus" class="status">
+    No authentication request sent yet.
+  </div>
+
+  <p><strong>Request preview</strong></p>
+  <pre id="requestOutput">Waiting...</pre>
+
+  <h2>7. Backend response</h2>
+
+  <div id="backendStatus" class="status">
+    No backend response yet.
+  </div>
+
+  <pre id="responseOutput">Waiting...</pre>
+
+  <h2>8. Diagnostic conclusion</h2>
+
+  <div id="diagnosis" class="status info">
+    Waiting for an authentication attempt.
+  </div>
+
+</div>
+
+<script>
+"use strict";
+
+/*
+|--------------------------------------------------------------------------
+| Configuration
+|--------------------------------------------------------------------------
+*/
+
+const API_BASE = "http://localhost:8000/api/v1";
+
+const CONFIG_URL = `${API_BASE}/auth/google/config`;
+const GOOGLE_AUTH_URL = `${API_BASE}/auth/google`;
+const GOOGLE_MOCK_URL = `${API_BASE}/dev/google-mock/token`;
+
+/*
+|--------------------------------------------------------------------------
+| State
+|--------------------------------------------------------------------------
+*/
+
+let backendConfig = null;
+let googleInitialized = false;
+let currentNonce = null;
+let googleClientId = null;
+let currentIdToken = null;
+
+/*
+|--------------------------------------------------------------------------
+| UI helpers
+|--------------------------------------------------------------------------
+*/
+
+function setStatus(elementId, message, type = "info") {
+  const element = document.getElementById(elementId);
+
+  element.className = `status ${type}`;
+  element.textContent = message;
+}
+
+function setOutput(elementId, value) {
+  document.getElementById(elementId).textContent =
+    typeof value === "string"
+      ? value
+      : JSON.stringify(value, null, 2);
+}
+
+function showMain(message, type = "info") {
+  setStatus("mainStatus", message, type);
+}
+
+function showDiagnosis(message, type = "info") {
+  setStatus("diagnosis", message, type);
+}
+
+async function copyText(value, buttonId, successMessage) {
+  const button = document.getElementById(buttonId);
+
+  if (!value || typeof value !== "string") {
+    setStatus("credentialStatus", "There is no value available to copy yet.", "warning");
+    return;
+  }
+
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(value);
+    } else {
+      const temporaryInput = document.createElement("textarea");
+      temporaryInput.value = value;
+      temporaryInput.setAttribute("readonly", "");
+      temporaryInput.style.position = "fixed";
+      temporaryInput.style.opacity = "0";
+      document.body.appendChild(temporaryInput);
+      temporaryInput.select();
+
+      const copied = document.execCommand("copy");
+      document.body.removeChild(temporaryInput);
+
+      if (!copied) throw new Error("The browser did not allow clipboard access.");
+    }
+
+    const originalLabel = button.dataset.originalLabel || button.textContent.trim();
+    button.dataset.originalLabel = originalLabel;
+    button.textContent = "Copied!";
+    setStatus("credentialStatus", successMessage, "success");
+
+    window.setTimeout(() => { button.textContent = originalLabel; }, 1800);
+  } catch (error) {
+    setStatus(
+      "credentialStatus",
+      `Could not copy automatically: ${error.message}. Select and copy the value manually.`,
+      "error"
+    );
+  }
+}
+
+function updateCopyControls(token, nonce) {
+  currentIdToken = token || null;
+  document.getElementById("copyTokenButton").disabled = !currentIdToken;
+  document.getElementById("copyNonceButton").disabled = !nonce;
+  setOutput("nonceOutput", nonce || "No nonce was supplied for this credential.");
+}
+
+function newNonce() {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+
+  return Array.from(bytes)
+    .map(byte => byte.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+/*
+|--------------------------------------------------------------------------
+| JWT payload inspection
+|--------------------------------------------------------------------------
+|
+| This only decodes the JWT payload.
+| It DOES NOT verify Google's cryptographic signature.
+| Actual verification belongs to the backend.
+|
+*/
+
+function decodeJwtPayload(token) {
+  try {
+    const parts = token.split(".");
+
+    if (parts.length !== 3) {
+      throw new Error("The credential is not a three-part JWT.");
+    }
+
+    let payload = parts[1]
+      .replace(/-/g, "+")
+      .replace(/_/g, "/");
+
+    while (payload.length % 4) {
+      payload += "=";
+    }
+
+    const decoded = atob(payload);
+
+    const bytes = Uint8Array.from(
+      decoded,
+      character => character.charCodeAt(0)
+    );
+
+    return JSON.parse(
+      new TextDecoder().decode(bytes)
+    );
+
+  } catch (error) {
+    throw new Error(
+      `JWT payload decoding failed: ${error.message}`
+    );
+  }
+}
+
+function inspectToken(token, expectedNonce) {
+  const claims = decodeJwtPayload(token);
+
+  const now = Math.floor(Date.now() / 1000);
+
+  const audienceMatches =
+    Array.isArray(backendConfig?.client_ids)
+      ? backendConfig.client_ids.includes(claims.aud)
+      : backendConfig?.client_ids?.includes(claims.aud);
+
+  const checks = {
+    jwt_structure_valid: token.split(".").length === 3,
+    issuer_valid: [
+      "accounts.google.com",
+      "https://accounts.google.com"
+    ].includes(claims.iss),
+
+    subject_present:
+      typeof claims.sub === "string" &&
+      claims.sub.length > 0,
+
+    email_present:
+      typeof claims.email === "string" &&
+      claims.email.length > 0,
+
+    email_verified:
+      claims.email_verified === true,
+
+    audience_matches_backend_configuration:
+      Boolean(audienceMatches),
+
+    not_expired:
+      Number.isFinite(claims.exp) &&
+      claims.exp > now,
+
+    issued_at_not_in_future:
+      !Number.isFinite(claims.iat) ||
+      claims.iat <= now,
+
+    nonce_matches:
+      expectedNonce
+        ? claims.nonce === expectedNonce
+        : "Nonce not supplied"
+  };
+
+  return {
+    claims,
+    checks
+  };
+}
+
+/*
+|--------------------------------------------------------------------------
+| Backend configuration
+|--------------------------------------------------------------------------
+*/
+
+async function loadBackendConfig() {
+  setStatus(
+    "configStatus",
+    "Contacting GET /auth/google/config...",
+    "info"
+  );
+
+  try {
+    const response = await fetch(CONFIG_URL, {
+      method: "GET",
+      headers: {
+        "Accept": "application/json"
+      }
+    });
+
+    const body = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      throw new Error(
+        `Configuration request returned HTTP ${response.status}: ${
+          JSON.stringify(body)
+        }`
+      );
+    }
+
+    backendConfig = body;
+
+    setOutput("configStatus", {
+      endpoint: CONFIG_URL,
+      http_status: response.status,
+      configuration: backendConfig
+    });
+
+    const realEnabled = body.real_enabled === true;
+    const mockEnabled = body.mock_enabled === true;
+
+    if (!body.enabled) {
+      setStatus(
+        "googleStatus",
+        "Google sign-in is disabled by the backend.",
+        "warning"
+      );
+
+      setStatus(
+        "configStatus",
+        "Backend configuration loaded. Google sign-in is disabled.",
+        "warning"
+      );
+
+      document.getElementById("mockButton").disabled = true;
+      return;
+    }
+
+    document.getElementById("mockButton").disabled =
+      !mockEnabled;
+
+    if (realEnabled) {
+      if (!Array.isArray(body.client_ids) ||
+          body.client_ids.length === 0) {
+        setStatus(
+          "googleStatus",
+          "The backend reports real Google sign-in enabled, but returned no client IDs. This is a backend configuration problem.",
+          "error"
+        );
+        return;
+      }
+
+      googleClientId = body.client_ids[0];
+
+      setStatus(
+        "googleStatus",
+        `Real Google sign-in is enabled. Client ID selected: ${googleClientId}`,
+        "success"
+      );
+
+      initializeGoogleWhenReady();
+
+    } else {
+      setStatus(
+        "googleStatus",
+        "Real Google sign-in is disabled. The real Google button will not be shown.",
+        "warning"
+      );
+    }
+
+    if (mockEnabled) {
+      setStatus(
+        "configStatus",
+        "Backend configuration loaded. Real/mock modes are enabled as reported above.",
+        "success"
+      );
+    } else {
+      setStatus(
+        "configStatus",
+        "Backend configuration loaded. Mock sign-in is disabled.",
+        "success"
+      );
+    }
+
+  } catch (error) {
+    backendConfig = null;
+
+    setStatus(
+      "configStatus",
+      `Could not retrieve backend configuration: ${error.message}`,
+      "error"
+    );
+
+    setStatus(
+      "googleStatus",
+      "Cannot initialize Google sign-in until the backend configuration is available.",
+      "warning"
+    );
+
+    document.getElementById("mockButton").disabled = true;
+
+    showDiagnosis(
+      "BACKEND CONFIGURATION / CONNECTIVITY PROBLEM: The browser could not obtain GET /auth/google/config. Check whether the API is running, the URL is correct, and CORS allows this page's origin.",
+      "error"
+    );
+  }
+}
+
+/*
+|--------------------------------------------------------------------------
+| Google Identity Services initialization
+|--------------------------------------------------------------------------
+*/
+
+function initializeGoogleWhenReady() {
+  if (!backendConfig?.real_enabled || !googleClientId) {
+    return;
+  }
+
+  if (!window.google?.accounts?.id) {
+    setTimeout(initializeGoogleWhenReady, 300);
+    return;
+  }
+
+  if (googleInitialized) {
+    return;
+  }
+
+  try {
+    currentNonce = newNonce();
+
+    google.accounts.id.initialize({
+      client_id: googleClientId,
+      nonce: currentNonce,
+      callback: handleGoogleResponse
+    });
+
+    google.accounts.id.renderButton(
+      document.getElementById("googleButton"),
+      {
+        theme: "outline",
+        size: "large",
+        text: "continue_with",
+        shape: "rectangular",
+        width: 300
+      }
+    );
+
+    googleInitialized = true;
+
+    setStatus(
+      "googleStatus",
+      "Google Identity Services initialized. The official Google sign-in button is ready.",
+      "success"
+    );
+
+  } catch (error) {
+    setStatus(
+      "googleStatus",
+      `Google Identity Services initialization failed: ${error.message}`,
+      "error"
+    );
+
+    showDiagnosis(
+      "GOOGLE FRONTEND INITIALIZATION PROBLEM: The Google SDK loaded, but the browser could not initialize the sign-in interface. Check the client ID and Google Cloud configuration.",
+      "error"
+    );
+  }
+}
+
+/*
+|--------------------------------------------------------------------------
+| Real Google callback
+|--------------------------------------------------------------------------
+*/
+
+async function handleGoogleResponse(response) {
+  if (!response || !response.credential) {
+    setStatus(
+      "credentialStatus",
+      "Google did not return a credential.",
+      "error"
+    );
+
+    showDiagnosis(
+      "GOOGLE-SIDE FAILURE: The Google callback did not provide an ID token. The Camp Match authentication endpoint has not yet been called.",
+      "error"
+    );
+
+    return;
+  }
+
+  const receivedToken = response.credential;
+  updateCopyControls(receivedToken, currentNonce);
+
+  setStatus(
+    "credentialStatus",
+    "Google returned a credential successfully. The complete ID token has been received.",
+    "success"
+  );
+
+  /*
+   * Show the complete token on this local diagnostic interface,
+   * as requested. Do not send it to logs or share it.
+   */
+
+  document.getElementById("tokenSection").classList.remove("hidden");
+  setOutput("tokenOutput", receivedToken);
+
+  showMain(
+    "Google returned an ID token. Inspecting its claims and sending it to Camp Match.",
+    "success"
+  );
+
+  await sendToBackend(receivedToken, currentNonce, "REAL_GOOGLE");
+}
+
+/*
+|--------------------------------------------------------------------------
+| Mock Google flow
+|--------------------------------------------------------------------------
+*/
+
+async function runMockGoogle() {
+  if (!backendConfig?.mock_enabled) {
+    showDiagnosis(
+      "MOCK SIGN-IN IS NOT ENABLED. The backend configuration does not permit the development mock flow.",
+      "warning"
+    );
+    return;
+  }
+
+  const email = document.getElementById("mockEmail").value.trim();
+  const hostedDomain =
+    document.getElementById("mockHostedDomain").value.trim();
+
+  if (!email) {
+    setStatus(
+      "credentialStatus",
+      "Enter an email address for the mock account.",
+      "warning"
+    );
+    return;
+  }
+
+  const button = document.getElementById("mockButton");
+  button.disabled = true;
+
+  try {
+    setStatus(
+      "credentialStatus",
+      "Requesting a mock Google token from the backend...",
+      "info"
+    );
+
+    const requestBody = {
+      email: email,
+      email_verified: true
+    };
+
+    if (hostedDomain) {
+      requestBody.hosted_domain = hostedDomain;
+    }
+
+    const response = await fetch(GOOGLE_MOCK_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    const body = await response.json().catch(() => null);
+
+    if (!response.ok) {
+      throw new Error(
+        `Mock token endpoint returned HTTP ${response.status}: ${
+          JSON.stringify(body)
+        }`
+      );
+    }
+
+    if (!body?.id_token) {
+      throw new Error(
+        "The mock-token endpoint returned no id_token."
+      );
+    }
+
+    const mockToken = body.id_token;
+    updateCopyControls(mockToken, null);
+
+    document.getElementById("tokenSection").classList.remove("hidden");
+    setOutput("tokenOutput", mockToken);
+
+    setStatus(
+      "credentialStatus",
+      "The backend successfully minted a mock Google token.",
+      "success"
+    );
+
+    /*
+     * The mock token goes through the same authentication endpoint
+     * as the real Google token.
+     */
+
+    await sendToBackend(mockToken, null, "MOCK_GOOGLE");
+
+  } catch (error) {
+    setStatus(
+      "credentialStatus",
+      error.message,
+      "error"
+    );
+
+    showDiagnosis(
+      `MOCK TOKEN GENERATION FAILED: ${error.message}. This is a development backend route/configuration issue, not a failure of Google's real sign-in service.`,
+      "error"
+    );
+
+  } finally {
+    button.disabled = !backendConfig?.mock_enabled;
+  }
+}
+
+/*
+|--------------------------------------------------------------------------
+| Token exchange with Camp Match
+|--------------------------------------------------------------------------
+*/
+
+async function sendToBackend(idToken, nonce, source) {
+  if (!idToken || typeof idToken !== "string") {
+    showDiagnosis(
+      "FRONTEND ERROR: No valid token string was supplied to the backend request.",
+      "error"
+    );
+    return;
+  }
+
+  let inspection;
+
+  try {
+    inspection = inspectToken(
+      idToken,
+      nonce
+    );
+
+    setOutput("claimsOutput", {
+      claims: inspection.claims,
+      local_checks: inspection.checks,
+      important_note:
+        "These are browser-side payload checks only. They do not verify Google's cryptographic signature."
+    });
+
+    setStatus(
+      "inspectionStatus",
+      "The token payload was decoded. The checks shown are preliminary client-side diagnostics, not cryptographic verification.",
+      "info"
+    );
+
+  } catch (error) {
+    setStatus(
+      "inspectionStatus",
+      error.message,
+      "error"
+    );
+
+    setOutput("claimsOutput", "Token payload could not be decoded.");
+  }
+
+  /*
+   * The complete ID token is sent in id_token.
+   * The Google sub claim is NOT sent as the token.
+   *
+   * The same nonce passed to Google is sent to the backend.
+   */
+
+  const requestBody = {
+    id_token: idToken
+  };
+
+  if (nonce) {
+    requestBody.nonce = nonce;
+  }
+
+  setOutput("requestOutput", {
+    method: "POST",
+    url: GOOGLE_AUTH_URL,
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json"
+    },
+    body: {
+      id_token: "[COMPLETE ID TOKEN SENT IN THIS FIELD]",
+      id_token_length: idToken.length,
+      nonce: nonce || "(not supplied)",
+      source: source
+    }
+  });
+
+  setStatus(
+    "requestStatus",
+    "Sending the complete ID token to POST /auth/google...",
+    "info"
+  );
+
+  setStatus(
+    "backendStatus",
+    "Waiting for the backend response...",
+    "info"
+  );
+
+  try {
+    const response = await fetch(GOOGLE_AUTH_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    const body = await response.json().catch(() => null);
+
+    /*
+     * Never display or log raw access/refresh tokens.
+     * Only display the authentication result and safe metadata.
+     */
+
+    const safeResponse = body && typeof body === "object"
+      ? { ...body }
+      : body;
+
+    if (safeResponse && typeof safeResponse === "object") {
+      delete safeResponse.access_token;
+      delete safeResponse.refresh_token;
+    }
+
+    setOutput("responseOutput", {
+      http_status: response.status,
+      response: safeResponse
+    });
+
+    if (response.ok) {
+      if (!body?.access_token || !body?.refresh_token) {
+        setStatus(
+          "backendStatus",
+          "The backend returned a successful HTTP status but the expected authentication tokens are missing.",
+          "error"
+        );
+
+        showDiagnosis(
+          "BACKEND RESPONSE CONTRACT FAILURE: The backend returned success, but its response does not contain the expected access_token and refresh_token fields.",
+          "error"
+        );
+
+        return;
+      }
+
+      setStatus(
+        "backendStatus",
+        "BACKEND AUTHENTICATION SUCCESSFUL. Camp Match accepted the Google identity and issued authentication tokens.",
+        "success"
+      );
+
+      showDiagnosis(
+        `SUCCESS: ${source} authentication completed. The backend accepted the ID token and issued an access token and refresh token. is_new_account = ${body.is_new_account}.`,
+        "success"
+      );
+
+      showMain(
+        "Authentication successful. Camp Match issued a token pair.",
+        "success"
+      );
+
+      return;
+    }
+
+    const errorCode = body?.error?.code || "unknown_error";
+    const errorMessage =
+      body?.error?.message || "The backend rejected the request.";
+
+    setStatus(
+      "backendStatus",
+      `BACKEND REJECTED THE REQUEST. HTTP ${response.status}: ${errorCode} - ${errorMessage}`,
+      "error"
+    );
+
+    if (errorCode === "invalid_google_token") {
+      showDiagnosis(
+        "BACKEND GOOGLE-VERIFICATION FAILURE: Google or the mock-token issuer supplied a credential to the frontend, and the request reached Camp Match. The backend rejected verification. Inspect the backend's google_token_rejected event and check the configured audience/client ID, issuer, signature, expiry, nonce and server connectivity. The browser cannot identify which server-side verification check failed.",
+        "error"
+      );
+
+    } else if (errorCode === "google_email_not_supported") {
+      showDiagnosis(
+        "GOOGLE IDENTITY POLICY REJECTION: The backend processed the identity but its email rules were not satisfied. The specification accepts verified Gmail and verified Google Workspace accounts only.",
+        "warning"
+      );
+
+    } else if (errorCode === "account_exists") {
+      showDiagnosis(
+        "ACCOUNT COLLISION: The Google email belongs to an already verified Camp Match account. Sign in using the existing method, then link Google from account settings.",
+        "warning"
+      );
+
+    } else if (
+      errorCode === "account_suspended" ||
+      errorCode === "account_disabled"
+    ) {
+      showDiagnosis(
+        `ACCOUNT STATUS REJECTION: Google token verification was not the reported problem. The existing Camp Match account is ${errorCode.replace("account_", "")}.`,
+        "warning"
+      );
+
+    } else if (errorCode === "google_sign_in_disabled") {
+      showDiagnosis(
+        "GOOGLE SIGN-IN IS DISABLED BY THE BACKEND. Check GOOGLE_AUTH_BACKEND and the application environment.",
+        "warning"
+      );
+
+    } else {
+      showDiagnosis(
+        `BACKEND APPLICATION REJECTION: The request reached the authentication endpoint, which returned HTTP ${response.status} and error code ${errorCode}. Inspect the backend response and logs.`,
+        "error"
+      );
+    }
+
+  } catch (error) {
+    setStatus(
+      "backendStatus",
+      `The browser could not complete the backend request: ${error.message}`,
+      "error"
+    );
+
+    showDiagnosis(
+      "BACKEND CONNECTIVITY / BROWSER TRANSPORT FAILURE: The Google credential was obtained, but the browser could not complete the request to Camp Match. Check whether the API is running, whether the URL is correct, and whether CORS permits this page's origin. A failed fetch does not establish that Google rejected the token.",
+      "error"
+    );
+  }
+}
+
+/*
+|--------------------------------------------------------------------------
+| Event handlers
+|--------------------------------------------------------------------------
+*/
+
+document
+  .getElementById("mockButton")
+  .addEventListener("click", runMockGoogle);
+
+document
+  .getElementById("refreshConfig")
+  .addEventListener("click", loadBackendConfig);
+
+document.getElementById("copyTokenButton").addEventListener("click", () => {
+  copyText(
+    currentIdToken,
+    "copyTokenButton",
+    "Complete ID token copied to your clipboard. Keep it private."
+  );
+});
+
+document.getElementById("copyNonceButton").addEventListener("click", () => {
+  copyText(
+    currentNonce,
+    "copyNonceButton",
+    "Nonce copied to your clipboard. Use this exact value with the ID token."
+  );
+});
+
+/*
+|--------------------------------------------------------------------------
+| Start
+|--------------------------------------------------------------------------
+*/
+
+window.addEventListener("load", () => {
+  loadBackendConfig();
+});
+
+</script>
+</body>
+</html>

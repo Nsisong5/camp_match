@@ -113,6 +113,30 @@ _TEMPLATES: dict[NotificationType, tuple[str, str]] = {
         "Payment under review",
         "There was a problem confirming your payment. Our team will review it.",
     ),
+    NotificationType.PAYMENT_RELEASE_DUE_STAFF: (
+        "Action needed: release funds",
+        "A student confirmed their handover. The held payment is ready to review and release.",
+    ),
+    NotificationType.PAYMENT_AUTO_RELEASE_WARNING_FIRST_STAFF: (
+        "Automatic release approaching",
+        "Funds for a confirmed booking will be released automatically unless they are released or refunded first. Review the transaction.",
+    ),
+    NotificationType.PAYMENT_AUTO_RELEASE_WARNING_REMINDER_STAFF: (
+        "Reminder: automatic release",
+        "Funds for a confirmed booking are still due to be released automatically. Review the transaction.",
+    ),
+    NotificationType.PAYMENT_AUTO_RELEASE_WARNING_FINAL_STAFF: (
+        "Final notice: automatic release",
+        "Funds for a confirmed booking will be released automatically very soon. Review the transaction now.",
+    ),
+    NotificationType.PAYMENT_DISPUTE_RAISED_STAFF: (
+        "Payment dispute raised",
+        "A student raised a dispute on a held payment. Release is paused until it is resolved.",
+    ),
+    NotificationType.PAYMENT_FUNDS_AUTO_RELEASED_STAFF: (
+        "Funds released automatically",
+        "Funds for a confirmed booking were released automatically.",
+    ),
 }
 
 

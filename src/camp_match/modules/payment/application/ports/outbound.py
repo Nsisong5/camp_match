@@ -119,6 +119,9 @@ class PaymentRepository(Protocol):
     async def get_by_payment_attempt_id(self, payment_attempt_id: EntityId) -> Payment | None:
         ...
 
+    async def list_confirmed(self) -> list[Payment]:
+        ...
+
 
 class FundDispositionRepository(Protocol):
     async def add(self, disposition: FundDisposition) -> FundDisposition:
@@ -190,7 +193,90 @@ class ReleaseDecisionRepository(Protocol):
         decided_at: datetime,
         evidence_reference: str | None = None,
         authorized_by: EntityId | None = None,
+        student_confirmed_at: datetime | None = None,
+        warnings_sent_count: int | None = None,
     ) -> Any:
+        ...
+
+    async def get_by_id(self, decision_id: EntityId) -> Any | None:
+        ...
+
+
+class ReleaseScheduleRepository(Protocol):
+    async def add_schedule_if_not_exists(
+        self,
+        schedule_id: EntityId,
+        fund_disposition_id: EntityId,
+        payment_id: EntityId,
+        booking_id: EntityId,
+        student_confirmed_at: datetime,
+        cycle: int,
+        window_starts_at: datetime,
+    ) -> bool:
+        ...
+
+    async def get_by_fund_disposition_id(self, disposition_id: EntityId) -> Any | None:
+        ...
+
+    async def get_by_payment_id(self, payment_id: EntityId) -> Any | None:
+        ...
+
+    async def restart_cycle(
+        self,
+        disposition_id: EntityId,
+        expected_cycle: int,
+        new_window_starts_at: datetime,
+    ) -> bool:
+        ...
+
+    async def add_warnings(self, warnings: list[Any]) -> None:
+        ...
+
+    async def get_warnings_for_schedule(self, schedule_id: EntityId, cycle: int) -> list[Any]:
+        ...
+
+    async def claim_warning(
+        self,
+        schedule_id: EntityId,
+        cycle: int,
+        now: datetime,
+        min_spacing_minutes: int,
+    ) -> Any | None:
+        ...
+
+
+class TransactionReviewRepository(Protocol):
+    async def add(self, review: Any) -> Any:
+        ...
+
+    async def get_by_payment_id(self, payment_id: EntityId) -> Any | None:
+        ...
+
+    async def get_by_booking_id(self, booking_id: EntityId) -> list[Any]:
+        ...
+
+    async def update_conditional(
+        self,
+        payment_id: EntityId,
+        expected_version: int,
+        values: dict[str, Any],
+    ) -> bool:
+        ...
+
+    async def list_reviews(
+        self,
+        filters: dict[str, Any],
+        limit: int,
+        offset: int,
+    ) -> list[Any]:
+        ...
+
+    async def list_tasks(
+        self,
+        actor: Any,
+        filters: dict[str, Any],
+        limit: int,
+    ) -> list[Any]:
         ...
 
 
@@ -211,4 +297,12 @@ class LedgerEntryRepository(Protocol):
         ...
 
     async def get_by_fund_disposition_id(self, disposition_id: EntityId) -> list[Any]:
+        ...
+
+
+class ReleaseApproverProvider(Protocol):
+    async def count_active_approvers(self) -> int:
+        ...
+
+    async def list_release_approvers(self) -> list[EntityId]:
         ...

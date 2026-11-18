@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from functools import lru_cache
 from typing import Literal
 
@@ -23,9 +25,53 @@ class Settings(BaseSettings):
     media_access_token_secret: str = "media-secret-key-placeholder"
     media_access_token_ttl_seconds: int = 300
     booking_hold_duration_minutes: int = 30
-    payment_release_fallback_hours: int = 48
+    payment_auto_release_delay_hours: int = 48
+    payment_release_warning_offsets_hours: str = "24,12,3"
+    payment_release_warning_min_spacing_minutes: int = 60
+    payment_release_final_warning_min_lead_minutes: int = 60
+    payment_handover_unconfirmed_alert_hours: int = 168
+    admin_tasks_per_source_limit_default: int = 20
     payment_verification_staleness_minutes: int = 15
     saved_listings_max_per_user: int = Field(default=200, ge=1)
+
+    @model_validator(mode="after")
+    def validate_payment_warning_offsets(self) -> Settings:
+        try:
+            raw_parts = self.payment_release_warning_offsets_hours.split(",")
+            offsets = [int(x.strip()) for x in raw_parts if x.strip()]
+        except ValueError as e:
+            raise ValueError(
+                "payment_release_warning_offsets_hours must be comma-separated integers"
+            ) from e
+
+        if len(offsets) < 3:
+            raise ValueError(
+                "payment_release_warning_offsets_hours must contain at least 3 entries"
+            )
+        if any(o <= 0 for o in offsets):
+            raise ValueError(
+                "payment_release_warning_offsets_hours entries must be positive integers"
+            )
+        if any(a <= b for a, b in zip(offsets, offsets[1:], strict=False)):
+            raise ValueError(
+                "payment_release_warning_offsets_hours must be strictly decreasing"
+            )
+        if offsets[0] >= self.payment_auto_release_delay_hours:
+            raise ValueError(
+                "First payment release warning offset must be less than "
+                "payment_auto_release_delay_hours"
+            )
+        if self.payment_auto_release_delay_hours < 2:
+            raise ValueError("payment_auto_release_delay_hours must be at least 2")
+        if self.payment_release_warning_min_spacing_minutes < 1:
+            raise ValueError("payment_release_warning_min_spacing_minutes must be at least 1")
+        if self.payment_release_final_warning_min_lead_minutes < 1:
+            raise ValueError("payment_release_final_warning_min_lead_minutes must be at least 1")
+        if self.payment_handover_unconfirmed_alert_hours < 1:
+            raise ValueError("payment_handover_unconfirmed_alert_hours must be at least 1")
+        if not (1 <= self.admin_tasks_per_source_limit_default <= 100):
+            raise ValueError("admin_tasks_per_source_limit_default must be between 1 and 100")
+        return self
 
     # Messaging Settings (C8)
     messaging_max_message_length: int = 2000
@@ -57,7 +103,7 @@ class Settings(BaseSettings):
     platform_outbox_nudge_enabled: bool = True
     platform_debug_disable_nudge: bool = False
     platform_worker_job_timeout_seconds: int = 120
-    platform_jobs_disabled: str = "payment_auto_release"
+    platform_jobs_disabled: str = "payment_auto_release,payment_release_warnings"
     platform_job_platform_outbox_relay_interval_seconds: int = 3
     platform_job_messaging_outbox_relay_interval_seconds: int = 5
     platform_job_notification_inbox_interval_seconds: int = 15
@@ -65,6 +111,8 @@ class Settings(BaseSettings):
     platform_job_booking_hold_expiry_interval_seconds: int = 60
     platform_job_payment_recovery_interval_seconds: int = 60
     platform_job_payment_auto_release_interval_seconds: int = 3600
+    platform_job_payment_release_warnings_interval_seconds: int = 300
+    platform_job_payment_review_reconcile_interval_seconds: int = 86400
     platform_job_booking_reminders_interval_seconds: int = 300
     platform_job_suspended_listing_reconcile_interval_seconds: int = 300
     platform_job_retention_sweep_interval_seconds: int = 86400

@@ -128,6 +128,33 @@ class OverviewViewSchema(BaseSchema):
     admin_actions: OverviewSectionViewSchema
 
 
+class TaskItemSchema(BaseSchema):
+    task_id: str
+    type: str
+    priority: str
+    since: datetime
+    subject: dict[str, Any]
+    target: dict[str, Any]
+    facts: dict[str, Any]
+    required_permission: str
+    can_act: bool
+    due_at: datetime | None = None
+
+
+class TaskSectionSchema(BaseSchema):
+    source: str
+    status: str
+    as_of: datetime
+    items: list[TaskItemSchema]
+    total: int | None = None
+    reason_code: str | None = None
+
+
+class TasksOverviewResponseSchema(BaseSchema):
+    as_of: datetime
+    sections: list[TaskSectionSchema]
+
+
 class RecoveryResultSchema(BaseSchema):
     action_id: UUID
     requeued: int

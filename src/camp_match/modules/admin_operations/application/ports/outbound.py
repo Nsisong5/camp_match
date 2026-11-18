@@ -150,6 +150,37 @@ class NotificationSource(Protocol):
         ...
 
 
+@dataclass(frozen=True)
+class TaskItem:
+    task_id: str
+    type: str
+    priority: str
+    since: datetime
+    subject: dict[str, Any]
+    target: dict[str, Any]
+    facts: dict[str, Any]
+    required_permission: str
+    can_act: bool
+    due_at: datetime | None = None
+
+
+@dataclass(frozen=True)
+class TaskSection:
+    source: str
+    status: str
+    as_of: datetime
+    items: list[TaskItem]
+    total: int | None = None
+    reason_code: str | None = None
+
+
+class TaskSource(Protocol):
+    async def fetch(
+        self, actor_id: EntityId, filters: dict[str, Any], limit: int
+    ) -> TaskSection:
+        ...
+
+
 class MessagingSource(Protocol):
     async def fetch(self) -> dict[str, Any]:
         ...

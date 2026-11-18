@@ -112,3 +112,9 @@ class InboxRepository(Protocol):
 class PropertyOwnerProvider(Protocol):
     async def get_owner(self, property_id: EntityId) -> EntityId | None:
         ...
+
+
+@runtime_checkable
+class StaffRecipientProvider(Protocol):
+    async def list_release_approvers(self) -> list[EntityId]:
+        ...

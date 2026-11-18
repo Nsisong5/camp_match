@@ -21,3 +21,9 @@ class UnsupportedProviderCapability(PaymentError):
 
 class PaymentInitiationError(PaymentError):
     pass
+
+
+class ReleaseNotEligible(PaymentError):
+    def __init__(self, message: str, blocking_reason: str | None = None) -> None:
+        super().__init__(message)
+        self.blocking_reason = blocking_reason

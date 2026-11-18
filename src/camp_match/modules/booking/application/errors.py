@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from camp_match.shared_kernel.application.errors import (
+    ConflictError,
     ForbiddenError,
     NotFoundError,
     ValidationError,
@@ -11,6 +12,18 @@ class BookingNotFound(NotFoundError):
     def __init__(self, message: str = "Booking not found.") -> None:
         super().__init__(message=message)
         self.code = "booking_not_found"
+
+
+class HandoverNotOffered(ConflictError):
+    def __init__(self, message: str = "Handover must be offered before it can be accepted.") -> None:
+        super().__init__(message=message)
+        self.code = "handover_not_offered"
+
+
+class BookingNotConfirmedForHandover(ConflictError):
+    def __init__(self, message: str = "Booking must be confirmed for handover.") -> None:
+        super().__init__(message=message)
+        self.code = "booking_not_confirmed_for_handover"
 
 
 class ListingNotBookable(ValidationError):

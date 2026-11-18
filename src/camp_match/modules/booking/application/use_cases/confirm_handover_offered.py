@@ -3,7 +3,10 @@ from __future__ import annotations
 
 import structlog
 
-from camp_match.modules.booking.application.errors import BookingNotFound
+from camp_match.modules.booking.application.errors import (
+    BookingNotConfirmedForHandover,
+    BookingNotFound,
+)
 from camp_match.modules.booking.application.ports.inbound import (
     ConfirmHandoverOfferedRequest,
 )
@@ -14,10 +17,7 @@ from camp_match.modules.booking.application.ports.outbound import (
 )
 from camp_match.modules.booking.domain.events import HandoverOffered
 from camp_match.modules.security.domain.value_objects import Permission
-from camp_match.shared_kernel.application.errors import (
-    ForbiddenError,
-    ValidationError,
-)
+from camp_match.shared_kernel.application.errors import ForbiddenError
 from camp_match.shared_kernel.application.unit_of_work import UnitOfWork
 from camp_match.shared_kernel.domain.clock import Clock
 from camp_match.shared_kernel.domain.identifiers import EntityId
@@ -60,7 +60,11 @@ class ConfirmHandoverOfferedUseCase:
             )
 
         if booking.status.value != "CONFIRMED":
-            raise ValidationError("Booking must be confirmed to offer handover.")
+            raise BookingNotConfirmedForHandover("Booking must be confirmed to offer handover.")
+
+        if booking.handover_offered_at is not None:
+            # Idempotent repeat: already offered
+            return
 
         now = self.clock.now()
         async with self.uow:
@@ -87,6 +91,8 @@ class ConfirmHandoverOfferedUseCase:
                 caller_id=request.caller_id,
             )
         else:
-            raise ValidationError(
-                "Handover has already been offered or booking state changed."
-            )
+            current = await self.booking_repo.get_by_id(booking.id)
+            if current and current.handover_offered_at is not None:
+                return
+            if current and current.status.value != "CONFIRMED":
+                raise BookingNotConfirmedForHandover("Booking must be confirmed to offer handover.")

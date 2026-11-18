@@ -48,3 +48,9 @@ class ListStaff(Protocol):
 class GetAssignedRoles(Protocol):
     async def execute(self, identity_id: EntityId) -> frozenset[Role]:
         ...
+
+
+class ListIdentitiesHoldingPermission(Protocol):
+    async def execute(self, permission: Permission) -> list[EntityId]:
+        ...
+

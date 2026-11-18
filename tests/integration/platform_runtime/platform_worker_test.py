@@ -26,6 +26,8 @@ def test_job_registry_has_exact_named_jobs() -> None:
         "booking_hold_expiry",
         "payment_recovery",
         "payment_auto_release",
+        "payment_release_warnings",
+        "payment_review_reconcile",
         "booking_reminders",
         "suspended_listing_reconcile",
         "retention_sweep",

@@ -44,7 +44,7 @@ class SqlAlchemySavedListingRepository:
             saved_at=saved.saved_at,
         )
         self._session.add(model)
-        await self._session.flush()
+        await self._session.commit()
         return True
 
     async def remove(self, user_id: EntityId, listing_id: EntityId) -> bool:
@@ -53,7 +53,7 @@ class SqlAlchemySavedListingRepository:
             SavedListingModel.listing_id == listing_id.value,
         )
         res = await self._session.execute(stmt)
-        await self._session.flush()
+        await self._session.commit()
         return (res.rowcount or 0) > 0  # type: ignore[attr-defined]
 
     async def list_page(

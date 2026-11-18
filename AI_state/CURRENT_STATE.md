@@ -1,3 +1,2 @@
-- Module 17 (Google Sign-In & Email Verification) implementation is fully complete (Chunks 1–16).
-- All domain extensions, one-time code service, email adapters (log and SMTP), Google token verifiers (real, fake, disabled, composite), use cases, persistence repositories, Alembic migration, API routers, retention sweep job, manual testing guide, frontend API documentation, ADR-212 to ADR-232, and architecture guard tests are fully implemented and verified.
-- All unit, integration, API, and architecture tests passing successfully (101 tests passed).
+- Release Governance Amendment implementation is fully complete (Chunks 1–13).
+- All domain extensions, transaction review persistence, database constraints, automatic warnings and release jobs, admin tasks, review endpoints, security RBAC, and E2E security tests are fully implemented and verified.

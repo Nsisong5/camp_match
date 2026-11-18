@@ -10,6 +10,11 @@ from camp_match.modules.notification.application.parsing.event_parsers import (
     ListingSuspendedEvent,
     ListingSuspensionLiftedEvent,
     MessageNewEvent,
+    PaymentAutoReleaseWarningEvent,
+    PaymentDisputeRaisedEvent,
+    PaymentFundsRefundedEvent,
+    PaymentFundsReleasedEvent,
+    PaymentReleaseDueEvent,
     SafetyUpdateEventData,
     VerificationEventData,
     parse_event,
@@ -30,6 +35,7 @@ async def resolve_recipients(
     event_type: str,
     payload: dict[str, Any],
     get_owner: Callable[[EntityId], Awaitable[EntityId | None]],
+    get_approvers: Callable[[], Awaitable[list[EntityId]]] | None = None,
 ) -> tuple[
     list[NotificationDraft],
     list[tuple[TargetType, EntityId, list[NotificationAction]]],
@@ -229,6 +235,7 @@ async def resolve_recipients(
                     NotificationAction.COMPLETE_PAYMENT,
                     NotificationAction.OFFER_HANDOVER,
                     NotificationAction.ACCEPT_HANDOVER,
+                    NotificationAction.RELEASE_FUNDS,
                 ],
             )
         )
@@ -270,6 +277,7 @@ async def resolve_recipients(
                     NotificationAction.COMPLETE_PAYMENT,
                     NotificationAction.OFFER_HANDOVER,
                     NotificationAction.ACCEPT_HANDOVER,
+                    NotificationAction.RELEASE_FUNDS,
                 ],
             )
         )
@@ -403,6 +411,110 @@ async def resolve_recipients(
                 if parsed.reference_id
                 else None,
             )
+        )
+
+    elif event_type in {
+        NotificationType.PAYMENT_RELEASE_DUE_STAFF.value,
+        "PaymentReleaseDue",
+    }:
+        assert isinstance(parsed, PaymentReleaseDueEvent)
+        approvers = await get_approvers() if get_approvers else []
+        if not approvers:
+            logger.warning("notification_no_recipient", payment_id=parsed.payment_id.value)
+        else:
+            for approver_id in approvers:
+                drafts.append(
+                    NotificationDraft(
+                        recipient_id=approver_id,
+                        type=NotificationType.PAYMENT_RELEASE_DUE_STAFF,
+                        target=NotificationTarget(
+                            type=TargetType.BOOKING, id=parsed.booking_id
+                        ),
+                        action=NotificationAction.RELEASE_FUNDS,
+                    )
+                )
+
+    elif event_type in {
+        NotificationType.PAYMENT_AUTO_RELEASE_WARNING_FIRST_STAFF.value,
+        NotificationType.PAYMENT_AUTO_RELEASE_WARNING_REMINDER_STAFF.value,
+        NotificationType.PAYMENT_AUTO_RELEASE_WARNING_FINAL_STAFF.value,
+        "PaymentAutoReleaseWarning",
+    }:
+        assert isinstance(parsed, PaymentAutoReleaseWarningEvent)
+        stage_map = {
+            "FIRST": NotificationType.PAYMENT_AUTO_RELEASE_WARNING_FIRST_STAFF,
+            "REMINDER": NotificationType.PAYMENT_AUTO_RELEASE_WARNING_REMINDER_STAFF,
+            "FINAL": NotificationType.PAYMENT_AUTO_RELEASE_WARNING_FINAL_STAFF,
+        }
+        n_type = stage_map.get(parsed.warning_stage, NotificationType.PAYMENT_AUTO_RELEASE_WARNING_REMINDER_STAFF)
+        approvers = await get_approvers() if get_approvers else []
+        if not approvers:
+            logger.warning("notification_no_recipient", payment_id=parsed.payment_id.value)
+        else:
+            for approver_id in approvers:
+                drafts.append(
+                    NotificationDraft(
+                        recipient_id=approver_id,
+                        type=n_type,
+                        target=NotificationTarget(
+                            type=TargetType.BOOKING, id=parsed.booking_id
+                        ),
+                    )
+                )
+
+    elif event_type in {
+        NotificationType.PAYMENT_DISPUTE_RAISED_STAFF.value,
+        "PaymentDisputeRaised",
+    }:
+        assert isinstance(parsed, PaymentDisputeRaisedEvent)
+        approvers = await get_approvers() if get_approvers else []
+        if not approvers:
+            logger.warning("notification_no_recipient", payment_id=parsed.payment_id.value)
+        else:
+            for approver_id in approvers:
+                drafts.append(
+                    NotificationDraft(
+                        recipient_id=approver_id,
+                        type=NotificationType.PAYMENT_DISPUTE_RAISED_STAFF,
+                        target=NotificationTarget(
+                            type=TargetType.BOOKING, id=parsed.booking_id
+                        ),
+                    )
+                )
+        actions_to_resolve.append(
+            (TargetType.BOOKING, parsed.booking_id, [NotificationAction.RELEASE_FUNDS])
+        )
+
+    elif event_type in {
+        NotificationType.PAYMENT_FUNDS_AUTO_RELEASED_STAFF.value,
+        "PaymentFundsReleased",
+    }:
+        assert isinstance(parsed, PaymentFundsReleasedEvent)
+        if parsed.origin == "AUTOMATIC":
+            approvers = await get_approvers() if get_approvers else []
+            if not approvers:
+                logger.warning("notification_no_recipient", payment_id=parsed.payment_id.value)
+            else:
+                for approver_id in approvers:
+                    drafts.append(
+                        NotificationDraft(
+                            recipient_id=approver_id,
+                            type=NotificationType.PAYMENT_FUNDS_AUTO_RELEASED_STAFF,
+                            target=NotificationTarget(
+                                type=TargetType.BOOKING, id=parsed.booking_id
+                            ),
+                        )
+                    )
+        actions_to_resolve.append(
+            (TargetType.BOOKING, parsed.booking_id, [NotificationAction.RELEASE_FUNDS])
+        )
+
+    elif event_type in {
+        "PaymentFundsRefunded",
+    }:
+        assert isinstance(parsed, PaymentFundsRefundedEvent)
+        actions_to_resolve.append(
+            (TargetType.BOOKING, parsed.booking_id, [NotificationAction.RELEASE_FUNDS])
         )
 
     return drafts, actions_to_resolve

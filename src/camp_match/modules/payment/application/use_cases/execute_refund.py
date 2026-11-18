@@ -7,22 +7,27 @@ from camp_match.modules.payment.application.errors import (
 )
 from camp_match.modules.payment.application.ports.outbound import (
     FundDispositionRepository,
+    LedgerEntryRepository,
     RefundOperationRepository,
+    TransactionReviewRepository,
 )
 from camp_match.modules.payment.application.ports.provider import (
     RefundCapability,
 )
 from camp_match.modules.payment.domain.entities import RefundOperation
+from camp_match.modules.payment.domain.events import PaymentFundsRefunded
 from camp_match.modules.payment.domain.value_objects import (
     FundDispositionStatus,
+    LedgerEntryType,
     Money,
     OperationStatus,
+    ReviewStage,
 )
 from camp_match.shared_kernel.application.unit_of_work import UnitOfWork
 from camp_match.shared_kernel.domain.clock import Clock
 from camp_match.shared_kernel.domain.identifiers import EntityId
 
-logger = structlog.get_logger()
+logger = structlog.get_logger(__name__)
 
 
 class ExecuteRefundUseCase:
@@ -30,15 +35,19 @@ class ExecuteRefundUseCase:
         self,
         refund_repo: RefundOperationRepository,
         fund_disposition_repo: FundDispositionRepository,
+        ledger_repo: LedgerEntryRepository,
         refund_provider: RefundCapability,
         uow: UnitOfWork,
         clock: Clock,
+        review_repo: TransactionReviewRepository | None = None,
     ) -> None:
         self.refund_repo = refund_repo
         self.fund_disposition_repo = fund_disposition_repo
+        self.ledger_repo = ledger_repo
         self.refund_provider = refund_provider
         self.uow = uow
         self.clock = clock
+        self.review_repo = review_repo
 
     async def execute(
         self,
@@ -110,6 +119,35 @@ class ExecuteRefundUseCase:
                         else FundDispositionStatus.PARTIALLY_REFUNDED
                     )
                     await self.fund_disposition_repo.update_status(fund_disposition_id, new_status)
+                    await self.ledger_repo.add(
+                        entry_id=EntityId.new(),
+                        payment_id=fd.payment_id,
+                        fund_disposition_id=fund_disposition_id,
+                        entry_type=LedgerEntryType.REFUND,
+                        amount_kobo=-amount.amount_kobo,
+                        currency=amount.currency.value,
+                        reference_type="REFUND_OPERATION",
+                        reference_id=op.id,
+                        description="Refund payment",
+                        created_at=now,
+                    )
+
+                    review = await self.review_repo.get_by_payment_id(fd.payment_id) if self.review_repo else None
+                    if review:
+                        refunded_kobo = (review.refunded_kobo or 0) + amount.amount_kobo
+                        new_stage = ReviewStage.REFUNDED.value if refunded_kobo >= review.total_paid_kobo else review.stage
+                        await self.review_repo.update_conditional(
+                            payment_id=fd.payment_id,
+                            expected_version=review.version,
+                            values={"refunded_kobo": refunded_kobo, "stage": new_stage, "next_action": None},
+                        )
+
+                    event = PaymentFundsRefunded(
+                        payment_id=fd.payment_id,
+                        booking_id=fd.booking_id,
+                        student_id=review.student_id if review else fd.booking_id,
+                    )
+                    self.uow.add_event(event)
 
             await self.uow.commit()
 

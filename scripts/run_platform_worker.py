@@ -55,6 +55,12 @@ async def main() -> None:
     disabled_str = getattr(settings, "platform_jobs_disabled", "")
     disabled_jobs = {j.strip() for j in disabled_str.split(",") if j.strip()}
 
+    if "payment_auto_release" not in disabled_jobs and "payment_release_warnings" in disabled_jobs:
+        logger.warning(
+            "automatic_release_enabled_without_warnings",
+            message="automatic release will never fire: no warnings are being sent",
+        )
+
     if args.list:
         print("Registered Platform Jobs:")
         for name, (interval, _) in registry.items():

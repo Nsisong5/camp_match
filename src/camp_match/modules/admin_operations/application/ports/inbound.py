@@ -98,6 +98,50 @@ class OverviewView:
     payments: OverviewSectionView
     safety: OverviewSectionView
     notifications: OverviewSectionView
+
+
+@dataclass(frozen=True)
+class TaskView:
+    task_id: str
+    type: str
+    priority: str
+    since: datetime
+    subject: dict[str, Any]
+    target: dict[str, Any]
+    facts: dict[str, Any]
+    required_permission: str
+    can_act: bool
+    due_at: datetime | None = None
+
+
+@dataclass(frozen=True)
+class TaskSectionView:
+    source: str
+    status: str
+    as_of: datetime
+    items: list[TaskView]
+    total: int | None = None
+    reason_code: str | None = None
+
+
+@dataclass(frozen=True)
+class TasksView:
+    as_of: datetime
+    sections: list[TaskSectionView]
+
+
+@dataclass(frozen=True)
+class GetTasksRequest:
+    actor_id: EntityId
+    sources: list[str] | None = None
+    types: list[str] | None = None
+    priority: str | None = None
+    limit_per_source: int | None = None
+
+
+class GetTasks(Protocol):
+    async def execute(self, request: GetTasksRequest) -> TasksView:
+        ...
     messaging: OverviewSectionView
     issues: OverviewSectionView
     admin_actions: OverviewSectionView

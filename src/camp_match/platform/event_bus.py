@@ -33,6 +33,13 @@ def build_event_bus(
         booking_housing_reg.register_housing_subscribers(bus, session_factory, clock, settings)
     except ImportError:
         pass
+    try:
+        payment_booking_reg = importlib.import_module(
+            "camp_match.modules.payment.adapters.events.booking_subscriber"
+        )
+        payment_booking_reg.register_booking_subscribers(bus, session_factory, clock, settings)
+    except ImportError:
+        pass
     return bus
 
 

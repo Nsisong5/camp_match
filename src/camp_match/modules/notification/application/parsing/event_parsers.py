@@ -91,6 +91,32 @@ def parse_event(event_type: str, payload: dict[str, Any]) -> Any:
         "PaymentOutcomeRecorded",
     }:
         return _parse_payment_outcome(payload)
+    elif event_type in {
+        NotificationType.PAYMENT_RELEASE_DUE_STAFF.value,
+        "PaymentReleaseDue",
+    }:
+        return _parse_payment_release_due(payload)
+    elif event_type in {
+        NotificationType.PAYMENT_AUTO_RELEASE_WARNING_FIRST_STAFF.value,
+        NotificationType.PAYMENT_AUTO_RELEASE_WARNING_REMINDER_STAFF.value,
+        NotificationType.PAYMENT_AUTO_RELEASE_WARNING_FINAL_STAFF.value,
+        "PaymentAutoReleaseWarning",
+    }:
+        return _parse_payment_auto_release_warning(payload)
+    elif event_type in {
+        NotificationType.PAYMENT_DISPUTE_RAISED_STAFF.value,
+        "PaymentDisputeRaised",
+    }:
+        return _parse_payment_dispute_raised(payload)
+    elif event_type in {
+        NotificationType.PAYMENT_FUNDS_AUTO_RELEASED_STAFF.value,
+        "PaymentFundsReleased",
+    }:
+        return _parse_payment_funds_released(payload)
+    elif event_type in {
+        "PaymentFundsRefunded",
+    }:
+        return _parse_payment_funds_refunded(payload)
     else:
         raise ValueError(f"Unsupported event type: {event_type}")
 
@@ -374,4 +400,102 @@ def _parse_safety_update(p: dict[str, Any]) -> SafetyUpdateEventData:
         kind=kind_str,
         reference_type=p.get("reference_type"),
         reference_id=EntityId(_to_uuid(ref_id)) if ref_id else None,
+    )
+
+
+class PaymentReleaseDueEvent:
+    def __init__(self, payment_id: EntityId, booking_id: EntityId, student_id: EntityId, cycle: int) -> None:
+        self.payment_id = payment_id
+        self.booking_id = booking_id
+        self.student_id = student_id
+        self.cycle = cycle
+
+
+def _parse_payment_release_due(p: dict[str, Any]) -> PaymentReleaseDueEvent:
+    for field in ["payment_id", "booking_id", "student_id", "cycle"]:
+        if field not in p:
+            raise ValueError(f"Missing required field: {field}")
+    return PaymentReleaseDueEvent(
+        payment_id=EntityId(_to_uuid(p["payment_id"])),
+        booking_id=EntityId(_to_uuid(p["booking_id"])),
+        student_id=EntityId(_to_uuid(p["student_id"])),
+        cycle=int(p["cycle"]),
+    )
+
+
+class PaymentAutoReleaseWarningEvent:
+    def __init__(self, payment_id: EntityId, booking_id: EntityId, student_id: EntityId, cycle: int, warning_stage: str) -> None:
+        self.payment_id = payment_id
+        self.booking_id = booking_id
+        self.student_id = student_id
+        self.cycle = cycle
+        self.warning_stage = warning_stage
+
+
+def _parse_payment_auto_release_warning(p: dict[str, Any]) -> PaymentAutoReleaseWarningEvent:
+    for field in ["payment_id", "booking_id", "student_id", "cycle", "warning_stage"]:
+        if field not in p:
+            raise ValueError(f"Missing required field: {field}")
+    return PaymentAutoReleaseWarningEvent(
+        payment_id=EntityId(_to_uuid(p["payment_id"])),
+        booking_id=EntityId(_to_uuid(p["booking_id"])),
+        student_id=EntityId(_to_uuid(p["student_id"])),
+        cycle=int(p["cycle"]),
+        warning_stage=str(p["warning_stage"]).upper(),
+    )
+
+
+class PaymentDisputeRaisedEvent:
+    def __init__(self, payment_id: EntityId, booking_id: EntityId, student_id: EntityId) -> None:
+        self.payment_id = payment_id
+        self.booking_id = booking_id
+        self.student_id = student_id
+
+
+def _parse_payment_dispute_raised(p: dict[str, Any]) -> PaymentDisputeRaisedEvent:
+    for field in ["payment_id", "booking_id", "student_id"]:
+        if field not in p:
+            raise ValueError(f"Missing required field: {field}")
+    return PaymentDisputeRaisedEvent(
+        payment_id=EntityId(_to_uuid(p["payment_id"])),
+        booking_id=EntityId(_to_uuid(p["booking_id"])),
+        student_id=EntityId(_to_uuid(p["student_id"])),
+    )
+
+
+class PaymentFundsReleasedEvent:
+    def __init__(self, payment_id: EntityId, booking_id: EntityId, student_id: EntityId, origin: str) -> None:
+        self.payment_id = payment_id
+        self.booking_id = booking_id
+        self.student_id = student_id
+        self.origin = origin
+
+
+def _parse_payment_funds_released(p: dict[str, Any]) -> PaymentFundsReleasedEvent:
+    for field in ["payment_id", "booking_id", "student_id", "origin"]:
+        if field not in p:
+            raise ValueError(f"Missing required field: {field}")
+    return PaymentFundsReleasedEvent(
+        payment_id=EntityId(_to_uuid(p["payment_id"])),
+        booking_id=EntityId(_to_uuid(p["booking_id"])),
+        student_id=EntityId(_to_uuid(p["student_id"])),
+        origin=str(p["origin"]).upper(),
+    )
+
+
+class PaymentFundsRefundedEvent:
+    def __init__(self, payment_id: EntityId, booking_id: EntityId, student_id: EntityId) -> None:
+        self.payment_id = payment_id
+        self.booking_id = booking_id
+        self.student_id = student_id
+
+
+def _parse_payment_funds_refunded(p: dict[str, Any]) -> PaymentFundsRefundedEvent:
+    for field in ["payment_id", "booking_id", "student_id"]:
+        if field not in p:
+            raise ValueError(f"Missing required field: {field}")
+    return PaymentFundsRefundedEvent(
+        payment_id=EntityId(_to_uuid(p["payment_id"])),
+        booking_id=EntityId(_to_uuid(p["booking_id"])),
+        student_id=EntityId(_to_uuid(p["student_id"])),
     )

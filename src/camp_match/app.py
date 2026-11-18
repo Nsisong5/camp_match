@@ -20,6 +20,7 @@ from camp_match.modules.messaging.adapters.realtime.connection_manager import Co
 from camp_match.modules.notification.adapters.api.router import router as notification_router
 from camp_match.modules.payment.adapters.api.router import router as payment_router
 from camp_match.modules.payment.adapters.api.webhook_router import router as payment_webhook_router
+from camp_match.modules.payment.adapters.api.review_router import router as payment_review_router
 from camp_match.modules.profile.adapters.api.router import router as profile_router
 from camp_match.modules.saved_listings.adapters.api.router import router as saved_listings_router
 from camp_match.modules.search.adapters.api.router import router as search_router
@@ -139,6 +140,7 @@ def create_app() -> FastAPI:
     app.include_router(booking_router)
     app.include_router(payment_router)
     app.include_router(payment_webhook_router)
+    app.include_router(payment_review_router)
     app.include_router(messaging_router)
     app.include_router(messaging_ws_router)
     app.include_router(notification_router)

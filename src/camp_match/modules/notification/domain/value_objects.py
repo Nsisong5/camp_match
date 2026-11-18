@@ -28,6 +28,7 @@ class NotificationAction(StrEnum):
     COMPLETE_PAYMENT = "COMPLETE_PAYMENT"
     OFFER_HANDOVER = "OFFER_HANDOVER"
     ACCEPT_HANDOVER = "ACCEPT_HANDOVER"
+    RELEASE_FUNDS = "RELEASE_FUNDS"
 
 
 class InboxStatus(StrEnum):
@@ -66,6 +67,12 @@ class NotificationType(StrEnum):
     PAYMENT_FAILED_STUDENT = "payment.failed.student"
     PAYMENT_LATE_STUDENT = "payment.late.student"
     PAYMENT_REVIEW_STUDENT = "payment.review.student"
+    PAYMENT_RELEASE_DUE_STAFF = "payment.release_due.staff"
+    PAYMENT_AUTO_RELEASE_WARNING_FIRST_STAFF = "payment.auto_release_warning_first.staff"
+    PAYMENT_AUTO_RELEASE_WARNING_REMINDER_STAFF = "payment.auto_release_warning_reminder.staff"
+    PAYMENT_AUTO_RELEASE_WARNING_FINAL_STAFF = "payment.auto_release_warning_final.staff"
+    PAYMENT_DISPUTE_RAISED_STAFF = "payment.dispute_raised.staff"
+    PAYMENT_FUNDS_AUTO_RELEASED_STAFF = "payment.funds_auto_released.staff"
 
     @property
     def category(self) -> NotificationCategory:
@@ -98,6 +105,12 @@ class NotificationType(StrEnum):
             NotificationType.PAYMENT_FAILED_STUDENT: NotificationCategory.PAYMENT,
             NotificationType.PAYMENT_LATE_STUDENT: NotificationCategory.PAYMENT,
             NotificationType.PAYMENT_REVIEW_STUDENT: NotificationCategory.PAYMENT,
+            NotificationType.PAYMENT_RELEASE_DUE_STAFF: NotificationCategory.PAYMENT,
+            NotificationType.PAYMENT_AUTO_RELEASE_WARNING_FIRST_STAFF: NotificationCategory.PAYMENT,
+            NotificationType.PAYMENT_AUTO_RELEASE_WARNING_REMINDER_STAFF: NotificationCategory.PAYMENT,
+            NotificationType.PAYMENT_AUTO_RELEASE_WARNING_FINAL_STAFF: NotificationCategory.PAYMENT,
+            NotificationType.PAYMENT_DISPUTE_RAISED_STAFF: NotificationCategory.PAYMENT,
+            NotificationType.PAYMENT_FUNDS_AUTO_RELEASED_STAFF: NotificationCategory.PAYMENT,
         }
         return _mapping[self]
 
@@ -132,6 +145,12 @@ class NotificationType(StrEnum):
             NotificationType.PAYMENT_FAILED_STUDENT: False,
             NotificationType.PAYMENT_LATE_STUDENT: False,
             NotificationType.PAYMENT_REVIEW_STUDENT: False,
+            NotificationType.PAYMENT_RELEASE_DUE_STAFF: False,
+            NotificationType.PAYMENT_AUTO_RELEASE_WARNING_FIRST_STAFF: False,
+            NotificationType.PAYMENT_AUTO_RELEASE_WARNING_REMINDER_STAFF: False,
+            NotificationType.PAYMENT_AUTO_RELEASE_WARNING_FINAL_STAFF: False,
+            NotificationType.PAYMENT_DISPUTE_RAISED_STAFF: False,
+            NotificationType.PAYMENT_FUNDS_AUTO_RELEASED_STAFF: False,
         }
         return _collapsible_mapping[self]
 

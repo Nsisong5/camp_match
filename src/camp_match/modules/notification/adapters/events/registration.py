@@ -21,7 +21,14 @@ from camp_match.modules.messaging.domain.events import MessageCreated
 from camp_match.modules.notification.adapters.events.subscribers import (
     create_handler,
 )
-from camp_match.modules.payment.domain.events import PaymentOutcomeRecorded
+from camp_match.modules.payment.domain.events import (
+    PaymentAutoReleaseWarning,
+    PaymentDisputeRaised,
+    PaymentFundsRefunded,
+    PaymentFundsReleased,
+    PaymentOutcomeRecorded,
+    PaymentReleaseDue,
+)
 from camp_match.modules.trust_safety.application.ports.events import (
     SafetyUpdatePublished,
 )
@@ -54,6 +61,11 @@ def register_notification_subscribers(
         ListingSuspended,
         ListingSuspensionLifted,
         PaymentOutcomeRecorded,
+        PaymentReleaseDue,
+        PaymentAutoReleaseWarning,
+        PaymentDisputeRaised,
+        PaymentFundsReleased,
+        PaymentFundsRefunded,
         VerificationDecisionRecorded,
         SafetyUpdatePublished,
     ]:

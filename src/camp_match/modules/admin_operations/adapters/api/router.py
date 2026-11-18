@@ -109,7 +109,7 @@ def _handle_error(e: Exception) -> None:
         raise HTTPException(status_code=403, detail=str(e)) from e
     if isinstance(e, (IssueStateChanged, IdempotencyKeyConflict)):
         raise HTTPException(status_code=409, detail=str(e)) from e
-    if isinstance(e, (ValidationError, InvalidIssue, InvalidIssueTransition, InvalidReason, InvalidResolution, RoleNotManageable, AccountNotActive, DomainError)):
+    if isinstance(e, (ValidationError, InvalidIssue, InvalidIssueTransition, InvalidReason, InvalidResolution, RoleNotManageable, AccountNotActive, DomainError, ValueError)):
         raise HTTPException(status_code=422, detail=str(e)) from e
     raise e
 
@@ -452,6 +452,35 @@ async def reject_staff_role_grant(
     try:
         res = await uc.execute(actor_id, EntityId(request_id), body.reason)
         return schemas.RoleGrantRequestResponse.model_validate(res)
+    except Exception as e:
+        _handle_error(e)
+        raise
+
+
+from camp_match.modules.admin_operations.application.use_cases.get_tasks import (
+    GetTasksRequest,
+    GetTasksUseCase,
+)
+
+@router.get("/tasks", response_model=schemas.TasksOverviewResponseSchema)
+async def get_tasks(
+    actor_id: Annotated[EntityId, Depends(get_current_identity_id)],
+    uc: Annotated[GetTasksUseCase, Depends(dependencies.get_get_tasks_use_case)],
+    source: Annotated[list[str] | None, Query()] = None,
+    type: Annotated[list[str] | None, Query()] = None,
+    priority: Annotated[str | None, Query()] = None,
+    limit_per_source: Annotated[int | None, Query(gt=0, le=100)] = None,
+) -> Any:
+    try:
+        request = GetTasksRequest(
+            actor_id=actor_id,
+            sources=source,
+            types=type,
+            priority=priority,
+            limit_per_source=limit_per_source,
+        )
+        res = await uc.execute(request)
+        return schemas.TasksOverviewResponseSchema.model_validate(res)
     except Exception as e:
         _handle_error(e)
         raise

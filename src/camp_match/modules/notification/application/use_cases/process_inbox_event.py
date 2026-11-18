@@ -17,6 +17,7 @@ from camp_match.modules.notification.application.ports.outbound import (
     InboxRepository,
     NotificationRepository,
     PropertyOwnerProvider,
+    StaffRecipientProvider,
 )
 from camp_match.modules.notification.domain.entities import Notification
 from camp_match.modules.notification.domain.inbox import next_delay_seconds
@@ -41,6 +42,7 @@ class ProcessInboxEventUseCase:
         backoff_base: int = 30,
         backoff_cap: int = 3600,
         debug_fail: bool = False,
+        staff_recipient_provider: StaffRecipientProvider | None = None,
     ) -> None:
         self.inbox_repo = inbox_repo
         self.notification_repo = notification_repo
@@ -51,6 +53,7 @@ class ProcessInboxEventUseCase:
         self.backoff_base = backoff_base
         self.backoff_cap = backoff_cap
         self.debug_fail = debug_fail
+        self.staff_recipient_provider = staff_recipient_provider
 
     async def execute(self, request: ProcessInboxEventRequest) -> ProcessOutcome:
         now = self.clock.now()
@@ -69,15 +72,18 @@ class ProcessInboxEventUseCase:
 
                 # Step 2: Parse and resolve recipients
                 try:
-                    supported_types = {t.value for t in NotificationType}
-                    if row.event_type not in supported_types:
-                        raise ValueError(f"Unsupported event type: {row.event_type}")
+                    async def get_owner_fn(property_id: EntityId) -> EntityId | None:
+                        return await self.property_owner_provider.get_owner(
+                            property_id
+                        )
 
-                    async def get_owner_fn(prop_id: EntityId) -> EntityId | None:
-                        return await self.property_owner_provider.get_owner(prop_id)
+                    async def get_approvers_fn() -> list[EntityId]:
+                        if self.staff_recipient_provider:
+                            return await self.staff_recipient_provider.list_release_approvers()
+                        return []
 
                     drafts, actions_to_resolve = await resolve_recipients(
-                        row.event_type, row.payload, get_owner_fn
+                        row.event_type, row.payload, get_owner_fn, get_approvers_fn
                     )
                 except Exception as parse_err:
                     await self.uow.rollback()
@@ -112,6 +118,7 @@ class ProcessInboxEventUseCase:
                         target=draft.target,
                         group_key=draft.group_key,
                         source_event_id=request.event_id,
+                        action=draft.action,
                         created_at=now,
                         latest_event_at=now,
                     )
@@ -133,6 +140,8 @@ class ProcessInboxEventUseCase:
                 return ProcessOutcome.PROCESSED
 
         except Exception as proc_err:
+            import traceback
+            traceback.print_exc()
             if isinstance(proc_err, RuntimeError) and str(proc_err) == "Debug forced processing failure":
                 # Fall through to failure handling
                 pass

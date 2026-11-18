@@ -3,16 +3,17 @@ from __future__ import annotations
 
 import structlog
 
-from camp_match.modules.booking.application.errors import BookingNotFound
+from camp_match.modules.booking.application.errors import (
+    BookingNotConfirmedForHandover,
+    BookingNotFound,
+    HandoverNotOffered,
+)
 from camp_match.modules.booking.application.ports.inbound import (
     ConfirmHandoverAcceptedRequest,
 )
 from camp_match.modules.booking.application.ports.outbound import BookingRepository
 from camp_match.modules.booking.domain.events import HandoverAccepted
-from camp_match.shared_kernel.application.errors import (
-    ForbiddenError,
-    ValidationError,
-)
+from camp_match.shared_kernel.application.errors import ForbiddenError
 from camp_match.shared_kernel.application.unit_of_work import UnitOfWork
 from camp_match.shared_kernel.domain.clock import Clock
 from camp_match.shared_kernel.domain.identifiers import EntityId
@@ -42,14 +43,18 @@ class ConfirmHandoverAcceptedUseCase:
             )
 
         if booking.status.value != "CONFIRMED":
-            raise ValidationError(
+            raise BookingNotConfirmedForHandover(
                 "Booking must be confirmed to accept handover."
             )
 
         if booking.handover_offered_at is None:
-            raise ValidationError(
+            raise HandoverNotOffered(
                 "Handover must be offered by the scout before it can be accepted."
             )
+
+        if booking.handover_accepted_at is not None:
+            # Idempotent repeat: already accepted
+            return
 
         now = self.clock.now()
         async with self.uow:
@@ -75,6 +80,14 @@ class ConfirmHandoverAcceptedUseCase:
                 caller_id=request.caller_id,
             )
         else:
-            raise ValidationError(
-                "Handover has already been accepted or state changed."
-            )
+            current = await self.booking_repo.get_by_id(booking.id)
+            if current and current.handover_accepted_at is not None:
+                return
+            if current and current.status.value != "CONFIRMED":
+                raise BookingNotConfirmedForHandover(
+                    "Booking must be confirmed to accept handover."
+                )
+            if current and current.handover_offered_at is None:
+                raise HandoverNotOffered(
+                    "Handover must be offered by the scout before it can be accepted."
+                )

@@ -638,8 +638,80 @@ def get_requeue_failed_safety_enforcement_use_case(
     )
 
 
+from camp_match.modules.admin_operations.adapters.tasks.payment_task_source import PaymentTaskSource
+from camp_match.modules.admin_operations.adapters.tasks.issues_task_source import IssuesTaskSource
+from camp_match.modules.admin_operations.adapters.tasks.verification_task_source import VerificationTaskSource
+from camp_match.modules.payment.adapters.persistence.repository import SqlAlchemyTransactionReviewRepository
+from camp_match.modules.payment.application.use_cases.list_payment_tasks import ListPaymentTasksUseCase
+from camp_match.modules.admin_operations.application.use_cases.get_tasks import GetTasksUseCase
+
+
 def get_list_audit_events_use_case(
     audit_repo: Annotated[SqlAlchemyAuditRepository, Depends(get_audit_repo)],
     authorizer: Annotated[InProcessAuthorizer, Depends(get_authorizer)],
 ) -> ListAuditEventsUseCase:
     return ListAuditEventsUseCase(audit_repo, authorizer)
+
+
+from camp_match.modules.security.application.ports.inbound import AuthorizationRequest
+from camp_match.modules.security.domain.value_objects import AuthorizationOutcome, Permission
+
+
+class PaymentAuthorizerAdapter:
+    def __init__(self, auth_uc: Any) -> None:
+        self._auth_uc = auth_uc
+
+    async def execute(self, identity_id: EntityId, permission: Any) -> None:
+        perm = permission if isinstance(permission, Permission) else Permission(permission)
+        decision = await self._auth_uc.execute(AuthorizationRequest(identity_id=identity_id, permission=perm))
+        if decision.outcome.name != "ALLOWED":
+            from camp_match.modules.security.application.errors import SecurityForbiddenError
+            raise SecurityForbiddenError("Action not permitted.")
+
+
+def get_payment_task_source(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    clock: Annotated[Any, Depends(get_clock)],
+) -> PaymentTaskSource:
+    review_repo = SqlAlchemyTransactionReviewRepository(session)
+    role_repo = SqlAlchemyRoleRepository(session)
+    profile_repo = SqlAlchemyProfileRepository(session)
+    profile_use_case = GetCurrentUserProfileUseCase(profile_repo)
+    sec_profile_provider = SecurityProfileProvider(profile_use_case)
+    auth_uc = AuthorizeActionUseCase(role_repo, sec_profile_provider)
+    payment_auth = PaymentAuthorizerAdapter(auth_uc)
+    list_payment_tasks_uc = ListPaymentTasksUseCase(review_repo, payment_auth, clock, get_settings())
+    return PaymentTaskSource(list_payment_tasks_uc, clock)
+
+
+def get_issues_task_source(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    clock: Annotated[Any, Depends(get_clock)],
+) -> IssuesTaskSource:
+    issue_repo = SqlAlchemyIssueRepository(session)
+    return IssuesTaskSource(issue_repo, clock)
+
+
+def get_verification_task_source(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    clock: Annotated[Any, Depends(get_clock)],
+) -> VerificationTaskSource:
+    case_repo = SqlAlchemyVerificationCaseRepository(session)
+    list_pending_reviews_uc = ListPendingReviewsUseCase(case_repo, is_reviewer=True)
+    return VerificationTaskSource(list_pending_reviews_uc, clock)
+
+
+def get_get_tasks_use_case(
+    payment_task_source: Annotated[PaymentTaskSource, Depends(get_payment_task_source)],
+    issues_task_source: Annotated[IssuesTaskSource, Depends(get_issues_task_source)],
+    verification_task_source: Annotated[VerificationTaskSource, Depends(get_verification_task_source)],
+    authorizer: Annotated[InProcessAuthorizer, Depends(get_authorizer)],
+    clock: Annotated[Any, Depends(get_clock)],
+    settings: Annotated[Any, Depends(get_settings)],
+) -> GetTasksUseCase:
+    task_sources = {
+        "PAYMENT": payment_task_source,
+        "ISSUES": issues_task_source,
+        "VERIFICATION": verification_task_source,
+    }
+    return GetTasksUseCase(task_sources, authorizer, clock, settings)

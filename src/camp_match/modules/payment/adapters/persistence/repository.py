@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import select, update
@@ -16,6 +16,9 @@ from camp_match.modules.payment.adapters.persistence.models import (
     RefundOperationModel,
     ReleaseDecisionModel,
     ReleaseOperationModel,
+    ReleaseScheduleModel,
+    ReleaseWarningModel,
+    TransactionReviewModel,
 )
 from camp_match.modules.payment.application.ports.outbound import WebhookEventRecord
 from camp_match.modules.payment.domain.entities import (
@@ -156,6 +159,11 @@ class SqlAlchemyPaymentRepository:
         model = result.scalar_one_or_none()
         return self._to_domain(model) if model else None
 
+    async def list_confirmed(self) -> list[Payment]:
+        stmt = select(PaymentModel).where(PaymentModel.confirmed_at.is_not(None))
+        result = await self._session.execute(stmt)
+        return [self._to_domain(m) for m in result.scalars().all()]
+
     def _to_domain(self, model: PaymentModel) -> Payment:
         return Payment(
             id=EntityId(model.id),
@@ -234,6 +242,14 @@ class SqlAlchemyFundDispositionRepository:
             release_operations=rel_ops,
             refund_operations=ref_ops,
         )
+
+    async def get_by_payment_id(self, payment_id: EntityId) -> FundDisposition | None:
+        stmt = select(FundDispositionModel).where(FundDispositionModel.payment_id == payment_id.value)
+        result = await self._session.execute(stmt)
+        model = result.scalar_one_or_none()
+        if not model:
+            return None
+        return await self.get_by_id(EntityId(model.id))
 
     async def update_status(self, disposition_id: EntityId, status: FundDispositionStatus) -> bool:
         stmt = (
@@ -531,6 +547,8 @@ class SqlAlchemyReleaseDecisionRepository:
         decided_at: datetime,
         evidence_reference: str | None = None,
         authorized_by: EntityId | None = None,
+        student_confirmed_at: datetime | None = None,
+        warnings_sent_count: int | None = None,
     ) -> Any:
         model = ReleaseDecisionModel(
             id=decision_id.value,
@@ -545,10 +563,17 @@ class SqlAlchemyReleaseDecisionRepository:
             origin=origin,
             authorized_by=authorized_by.value if authorized_by else None,
             reason=reason,
+            student_confirmed_at=student_confirmed_at,
+            warnings_sent_count=warnings_sent_count,
         )
         self._session.add(model)
         await self._session.flush()
         return model
+
+    async def get_by_id(self, decision_id: EntityId) -> Any | None:
+        stmt = select(ReleaseDecisionModel).where(ReleaseDecisionModel.id == decision_id.value)
+        result = await self._session.execute(stmt)
+        return result.scalars().first()
 
 
 class SqlAlchemyLedgerRepository:
@@ -588,5 +613,240 @@ class SqlAlchemyLedgerRepository:
         stmt = select(LedgerEntryModel).where(
             LedgerEntryModel.fund_disposition_id == disposition_id.value
         )
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+
+
+class SqlAlchemyReleaseScheduleRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def add_schedule_if_not_exists(
+        self,
+        schedule_id: EntityId,
+        fund_disposition_id: EntityId,
+        payment_id: EntityId,
+        booking_id: EntityId,
+        student_confirmed_at: datetime,
+        cycle: int,
+        window_starts_at: datetime,
+    ) -> bool:
+        try:
+            model = ReleaseScheduleModel(
+                id=schedule_id.value,
+                fund_disposition_id=fund_disposition_id.value,
+                payment_id=payment_id.value,
+                booking_id=booking_id.value,
+                student_confirmed_at=student_confirmed_at,
+                cycle=cycle,
+                window_starts_at=window_starts_at,
+            )
+            self._session.add(model)
+            await self._session.flush()
+            return True
+        except IntegrityError:
+            await self._session.rollback()
+            return False
+
+    async def get_by_fund_disposition_id(self, disposition_id: EntityId) -> Any | None:
+        stmt = select(ReleaseScheduleModel).where(
+            ReleaseScheduleModel.fund_disposition_id == disposition_id.value
+        )
+        result = await self._session.execute(stmt)
+        return result.scalars().first()
+
+    async def get_by_payment_id(self, payment_id: EntityId) -> Any | None:
+        stmt = select(ReleaseScheduleModel).where(
+            ReleaseScheduleModel.payment_id == payment_id.value
+        )
+        result = await self._session.execute(stmt)
+        return result.scalars().first()
+
+    async def list_all(self) -> list[Any]:
+        stmt = select(ReleaseScheduleModel)
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def restart_cycle(
+        self,
+        disposition_id: EntityId,
+        expected_cycle: int,
+        new_window_starts_at: datetime,
+    ) -> bool:
+        # Mark unsent warnings of current cycle as superseded
+        schedule = await self.get_by_fund_disposition_id(disposition_id)
+        if not schedule or schedule.cycle != expected_cycle:
+            return False
+
+        now = datetime.utcnow()
+        supersede_stmt = (
+            update(ReleaseWarningModel)
+            .where(
+                ReleaseWarningModel.release_schedule_id == schedule.id,
+                ReleaseWarningModel.cycle == expected_cycle,
+                ReleaseWarningModel.sent_at.is_(None),
+                ReleaseWarningModel.superseded_at.is_(None),
+            )
+            .values(superseded_at=now)
+        )
+        await self._session.execute(supersede_stmt)
+
+        update_stmt = (
+            update(ReleaseScheduleModel)
+            .where(
+                ReleaseScheduleModel.fund_disposition_id == disposition_id.value,
+                ReleaseScheduleModel.cycle == expected_cycle,
+            )
+            .values(
+                cycle=expected_cycle + 1,
+                window_starts_at=new_window_starts_at,
+                updated_at=now,
+            )
+        )
+        res = await self._session.execute(update_stmt)
+        await self._session.flush()
+        return res.rowcount > 0
+
+    async def add_warnings(self, warnings: list[Any]) -> None:
+        for w in warnings:
+            if isinstance(w, dict):
+                model = ReleaseWarningModel(
+                    id=w["id"],
+                    release_schedule_id=w["release_schedule_id"],
+                    cycle=w["cycle"],
+                    warning_number=w["warning_number"],
+                    due_at=w["due_at"],
+                    sent_at=w.get("sent_at"),
+                    superseded_at=w.get("superseded_at"),
+                )
+            else:
+                model = ReleaseWarningModel(
+                    id=w.id.value,
+                    release_schedule_id=w.release_schedule_id.value,
+                    cycle=w.cycle,
+                    warning_number=w.warning_number,
+                    due_at=w.due_at,
+                    sent_at=getattr(w, "sent_at", None),
+                    superseded_at=getattr(w, "superseded_at", None),
+                )
+            self._session.add(model)
+        await self._session.flush()
+
+    async def get_warnings_for_schedule(self, schedule_id: EntityId, cycle: int) -> list[Any]:
+        stmt = select(ReleaseWarningModel).where(
+            ReleaseWarningModel.release_schedule_id == schedule_id.value,
+            ReleaseWarningModel.cycle == cycle,
+        ).order_by(ReleaseWarningModel.warning_number)
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def claim_warning(
+        self,
+        schedule_id: EntityId,
+        cycle: int,
+        now: datetime,
+        min_spacing_minutes: int,
+    ) -> Any | None:
+        # Find lowest unsent, unsuperseded warning due <= now
+        warnings = await self.get_warnings_for_schedule(schedule_id, cycle)
+        for w in warnings:
+            if w.sent_at is not None or w.superseded_at is not None:
+                continue
+            if w.due_at > now:
+                break
+            # Check spacing if warning_number > 1
+            if w.warning_number > 1:
+                pred = next((p for p in warnings if p.warning_number == w.warning_number - 1), None)
+                if not pred or pred.sent_at is None:
+                    continue
+                min_delta = timedelta(minutes=min_spacing_minutes)
+                if now < pred.sent_at + min_delta:
+                    continue
+
+            # Attempt conditional claim
+            stmt = (
+                update(ReleaseWarningModel)
+                .where(
+                    ReleaseWarningModel.id == w.id,
+                    ReleaseWarningModel.sent_at.is_(None),
+                )
+                .values(sent_at=now)
+            )
+            res = await self._session.execute(stmt)
+            await self._session.flush()
+            if res.rowcount == 1:
+                w.sent_at = now
+                return w
+        return None
+
+
+class SqlAlchemyTransactionReviewRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def add(self, review: Any) -> Any:
+        self._session.add(review)
+        await self._session.flush()
+        return review
+
+    async def get_by_payment_id(self, payment_id: EntityId) -> Any | None:
+        stmt = select(TransactionReviewModel).where(
+            TransactionReviewModel.payment_id == payment_id.value
+        )
+        result = await self._session.execute(stmt)
+        return result.scalars().first()
+
+    async def get_by_booking_id(self, booking_id: EntityId) -> list[Any]:
+        stmt = select(TransactionReviewModel).where(
+            TransactionReviewModel.booking_id == booking_id.value
+        )
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def update_conditional(
+        self,
+        payment_id: EntityId,
+        expected_version: int,
+        values: dict[str, Any],
+    ) -> bool:
+        values["version"] = expected_version + 1
+        values["updated_at"] = datetime.utcnow()
+        stmt = (
+            update(TransactionReviewModel)
+            .where(
+                TransactionReviewModel.payment_id == payment_id.value,
+                TransactionReviewModel.version == expected_version,
+            )
+            .values(**values)
+        )
+        res = await self._session.execute(stmt)
+        await self._session.flush()
+        return res.rowcount == 1
+
+    async def list_reviews(
+        self,
+        filters: dict[str, Any],
+        limit: int,
+        offset: int,
+    ) -> list[Any]:
+        stmt = select(TransactionReviewModel)
+        if "stage" in filters:
+            stmt = stmt.where(TransactionReviewModel.stage == filters["stage"])
+        if "next_action" in filters:
+            stmt = stmt.where(TransactionReviewModel.next_action == filters["next_action"])
+        stmt = stmt.limit(limit).offset(offset)
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def list_tasks(
+        self,
+        actor: Any,
+        filters: dict[str, Any],
+        limit: int,
+    ) -> list[Any]:
+        stmt = select(TransactionReviewModel)
+        if "next_action" in filters:
+            stmt = stmt.where(TransactionReviewModel.next_action == filters["next_action"])
+        stmt = stmt.limit(limit)
         result = await self._session.execute(stmt)
         return list(result.scalars().all())

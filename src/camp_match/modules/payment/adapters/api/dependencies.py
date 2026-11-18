@@ -12,11 +12,14 @@ from camp_match.modules.payment.adapters.booking.booking_provider import InProce
 from camp_match.modules.payment.adapters.persistence.repository import (
     SqlAlchemyDisputeRepository,
     SqlAlchemyFundDispositionRepository,
+    SqlAlchemyLedgerRepository,
     SqlAlchemyPaymentAttemptRepository,
     SqlAlchemyPaymentRepository,
     SqlAlchemyRefundOperationRepository,
     SqlAlchemyReleaseDecisionRepository,
     SqlAlchemyReleaseOperationRepository,
+    SqlAlchemyReleaseScheduleRepository,
+    SqlAlchemyTransactionReviewRepository,
     SqlAlchemyWebhookEventRepository,
 )
 from camp_match.modules.payment.adapters.provider.mock.mock_provider_adapter import (
@@ -43,6 +46,7 @@ from camp_match.modules.security.adapters.profile.profile_provider import (
 from camp_match.modules.security.application.use_cases.authorize_action import (
     AuthorizeActionUseCase,
 )
+from camp_match.config.settings import get_settings
 from camp_match.platform.clock import SystemClock, get_clock
 from camp_match.platform.db.session import get_db_session
 from camp_match.platform.db.unit_of_work import SqlAlchemyUnitOfWork
@@ -77,6 +81,14 @@ def get_refund_operation_repo(session: Annotated[AsyncSession, Depends(get_db_se
     return SqlAlchemyRefundOperationRepository(session)
 
 
+def get_release_schedule_repo(session: Annotated[AsyncSession, Depends(get_db_session)]) -> SqlAlchemyReleaseScheduleRepository:
+    return SqlAlchemyReleaseScheduleRepository(session)
+
+
+def get_transaction_review_repo(session: Annotated[AsyncSession, Depends(get_db_session)]) -> SqlAlchemyTransactionReviewRepository:
+    return SqlAlchemyTransactionReviewRepository(session)
+
+
 def get_dispute_repo(session: Annotated[AsyncSession, Depends(get_db_session)]) -> SqlAlchemyDisputeRepository:
     return SqlAlchemyDisputeRepository(session)
 
@@ -87,6 +99,10 @@ def get_webhook_event_repo(session: Annotated[AsyncSession, Depends(get_db_sessi
 
 def get_release_decision_repo(session: Annotated[AsyncSession, Depends(get_db_session)]) -> SqlAlchemyReleaseDecisionRepository:
     return SqlAlchemyReleaseDecisionRepository(session)
+
+
+def get_ledger_repo(session: Annotated[AsyncSession, Depends(get_db_session)]) -> SqlAlchemyLedgerRepository:
+    return SqlAlchemyLedgerRepository(session)
 
 
 _mock_provider = MockPaymentProviderAdapter()
@@ -128,6 +144,149 @@ def get_booking_provider(
     return InProcessBookingProvider(booking_repo)
 
 
+from camp_match.modules.payment.adapters.context.transaction_context_provider import (
+    TransactionContextProvider,
+)
+from camp_match.modules.payment.application.use_cases.evaluate_release_eligibility import (
+    EvaluateReleaseEligibilityUseCase,
+)
+from camp_match.modules.payment.application.use_cases.get_transaction_review import (
+    GetTransactionReviewUseCase,
+)
+from camp_match.modules.payment.application.use_cases.get_transaction_review_summary import (
+    GetTransactionReviewSummaryUseCase,
+)
+from camp_match.modules.payment.application.use_cases.list_payment_tasks import (
+    ListPaymentTasksUseCase,
+)
+from camp_match.modules.payment.application.use_cases.list_transaction_reviews import (
+    ListTransactionReviewsUseCase,
+)
+from camp_match.modules.payment.adapters.security.release_approver_provider import (
+    SecurityReleaseApproverProvider,
+)
+from camp_match.modules.identity.application.use_cases.get_identity import GetIdentityByIdUseCase
+from camp_match.modules.security.application.use_cases.list_identities_holding_permission import (
+    ListIdentitiesHoldingPermissionUseCase,
+)
+
+
+def get_transaction_context_provider(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> TransactionContextProvider:
+    return TransactionContextProvider(session)
+
+
+def get_release_approver_provider(
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+) -> SecurityReleaseApproverProvider:
+    role_repo = SqlAlchemyRoleRepository(session)
+    # ...
+    return None # Placeholder
+
+
+def get_evaluate_release_eligibility_use_case(
+    fund_disposition_repo: Annotated[
+        SqlAlchemyFundDispositionRepository, Depends(get_fund_disposition_repo)
+    ],
+    booking_provider: Annotated[InProcessBookingProvider, Depends(get_booking_provider)],
+    dispute_repo: Annotated[SqlAlchemyDisputeRepository, Depends(get_dispute_repo)],
+    schedule_repo: Annotated[SqlAlchemyReleaseScheduleRepository, Depends(get_release_schedule_repo)],
+    session: Annotated[AsyncSession, Depends(get_db_session)],
+    clock: Annotated[SystemClock, Depends(get_clock)],
+) -> EvaluateReleaseEligibilityUseCase:
+    # Need approver_provider
+    from camp_match.modules.payment.adapters.security.release_approver_provider import SecurityReleaseApproverProvider
+    from camp_match.modules.security.adapters.persistence.repository import SqlAlchemyRoleRepository
+    from camp_match.modules.security.application.use_cases.list_identities_holding_permission import ListIdentitiesHoldingPermissionUseCase
+    from camp_match.modules.identity.adapters.persistence.repository import SqlAlchemyIdentityRepository
+    from camp_match.modules.identity.application.use_cases.get_identity import GetIdentityByIdUseCase
+    
+    role_repo = SqlAlchemyRoleRepository(session)
+    identity_repo = SqlAlchemyIdentityRepository(session)
+    list_identities_uc = ListIdentitiesHoldingPermissionUseCase(role_repo)
+    get_identity_uc = GetIdentityByIdUseCase(identity_repo)
+    
+    approver_provider = SecurityReleaseApproverProvider(list_identities_uc, get_identity_uc)
+    
+    return EvaluateReleaseEligibilityUseCase(
+        fund_disposition_repo,
+        booking_provider,
+        dispute_repo,
+        schedule_repo,
+        approver_provider,
+        clock,
+        get_settings(),
+    )
+
+
+def get_get_transaction_review_use_case(
+    review_repo: Annotated[
+        SqlAlchemyTransactionReviewRepository, Depends(get_transaction_review_repo)
+    ],
+    payment_repo: Annotated[SqlAlchemyPaymentRepository, Depends(get_payment_repo)],
+    attempt_repo: Annotated[
+        SqlAlchemyPaymentAttemptRepository, Depends(get_payment_attempt_repo)
+    ],
+    fd_repo: Annotated[SqlAlchemyFundDispositionRepository, Depends(get_fund_disposition_repo)],
+    decision_repo: Annotated[SqlAlchemyReleaseDecisionRepository, Depends(get_release_decision_repo)],
+    schedule_repo: Annotated[SqlAlchemyReleaseScheduleRepository, Depends(get_release_schedule_repo)],
+    dispute_repo: Annotated[SqlAlchemyDisputeRepository, Depends(get_dispute_repo)],
+    ledger_repo: Annotated[SqlAlchemyLedgerRepository, Depends(get_ledger_repo)],
+    context_provider: Annotated[
+        TransactionContextProvider, Depends(get_transaction_context_provider)
+    ],
+    evaluate_uc: Annotated[
+        EvaluateReleaseEligibilityUseCase, Depends(get_evaluate_release_eligibility_use_case)
+    ],
+    auth_service: Annotated[InProcessAuthorizationService, Depends(get_authorization_service)],
+    clock: Annotated[SystemClock, Depends(get_clock)],
+) -> GetTransactionReviewUseCase:
+    return GetTransactionReviewUseCase(
+        review_repo,
+        payment_repo,
+        attempt_repo,
+        fd_repo,
+        decision_repo,
+        schedule_repo,
+        dispute_repo,
+        ledger_repo,
+        context_provider,
+        evaluate_uc,
+        auth_service.authorizer, # Needs to expose authorizer or use auth_service
+        clock,
+        get_settings(),
+    )
+
+
+def get_list_transaction_reviews_use_case(
+    review_repo: Annotated[
+        SqlAlchemyTransactionReviewRepository, Depends(get_transaction_review_repo)
+    ],
+    auth_service: Annotated[InProcessAuthorizationService, Depends(get_authorization_service)],
+) -> ListTransactionReviewsUseCase:
+    return ListTransactionReviewsUseCase(review_repo, auth_service.authorizer)
+
+
+def get_get_transaction_review_summary_use_case(
+    review_repo: Annotated[
+        SqlAlchemyTransactionReviewRepository, Depends(get_transaction_review_repo)
+    ],
+    auth_service: Annotated[InProcessAuthorizationService, Depends(get_authorization_service)],
+) -> GetTransactionReviewSummaryUseCase:
+    return GetTransactionReviewSummaryUseCase(review_repo, auth_service.authorizer, get_settings())
+
+
+def get_list_payment_tasks_use_case(
+    review_repo: Annotated[
+        SqlAlchemyTransactionReviewRepository, Depends(get_transaction_review_repo)
+    ],
+    auth_service: Annotated[InProcessAuthorizationService, Depends(get_authorization_service)],
+    clock: Annotated[SystemClock, Depends(get_clock)],
+) -> ListPaymentTasksUseCase:
+    return ListPaymentTasksUseCase(review_repo, auth_service.authorizer, clock, get_settings())
+
+
 def get_initiate_payment_use_case(
     attempt_repo: Annotated[SqlAlchemyPaymentAttemptRepository, Depends(get_payment_attempt_repo)],
     booking_provider: Annotated[InProcessBookingProvider, Depends(get_booking_provider)],
@@ -142,21 +301,25 @@ def get_verify_payment_attempt_use_case(
     attempt_repo: Annotated[SqlAlchemyPaymentAttemptRepository, Depends(get_payment_attempt_repo)],
     payment_repo: Annotated[SqlAlchemyPaymentRepository, Depends(get_payment_repo)],
     fund_disposition_repo: Annotated[SqlAlchemyFundDispositionRepository, Depends(get_fund_disposition_repo)],
+    ledger_repo: Annotated[SqlAlchemyLedgerRepository, Depends(get_ledger_repo)],
     provider: Annotated[MockPaymentProviderAdapter, Depends(get_mock_provider)],
     booking_confirmation_port: Annotated[Any, Depends(get_booking_confirmation_port)],
     booking_provider: Annotated[InProcessBookingProvider, Depends(get_booking_provider)],
     uow: Annotated[SqlAlchemyUnitOfWork, Depends(get_uow)],
     clock: Annotated[SystemClock, Depends(get_clock)],
+    review_repo: Annotated[SqlAlchemyTransactionReviewRepository, Depends(get_transaction_review_repo)],
 ) -> VerifyPaymentAttemptUseCase:
     return VerifyPaymentAttemptUseCase(
         attempt_repo,
         payment_repo,
         fund_disposition_repo,
+        ledger_repo,
         provider,
         booking_confirmation_port,
         booking_provider,
         uow,
         clock,
+        review_repo=review_repo,
     )
 
 
@@ -177,18 +340,40 @@ def get_process_webhook_use_case(
 def get_execute_release_use_case(
     release_repo: Annotated[SqlAlchemyReleaseOperationRepository, Depends(get_release_operation_repo)],
     fund_disposition_repo: Annotated[SqlAlchemyFundDispositionRepository, Depends(get_fund_disposition_repo)],
+    ledger_repo: Annotated[SqlAlchemyLedgerRepository, Depends(get_ledger_repo)],
     provider: Annotated[MockPaymentProviderAdapter, Depends(get_mock_provider)],
     uow: Annotated[SqlAlchemyUnitOfWork, Depends(get_uow)],
     clock: Annotated[SystemClock, Depends(get_clock)],
+    release_decision_repo: Annotated[SqlAlchemyReleaseDecisionRepository, Depends(get_release_decision_repo)],
+    review_repo: Annotated[SqlAlchemyTransactionReviewRepository, Depends(get_transaction_review_repo)],
 ) -> ExecuteReleaseUseCase:
-    return ExecuteReleaseUseCase(release_repo, fund_disposition_repo, provider, uow, clock)
+    return ExecuteReleaseUseCase(
+        release_repo,
+        fund_disposition_repo,
+        ledger_repo,
+        provider,
+        uow,
+        clock,
+        release_decision_repo=release_decision_repo,
+        review_repo=review_repo,
+    )
 
 
 def get_execute_refund_use_case(
     refund_repo: Annotated[SqlAlchemyRefundOperationRepository, Depends(get_refund_operation_repo)],
     fund_disposition_repo: Annotated[SqlAlchemyFundDispositionRepository, Depends(get_fund_disposition_repo)],
+    ledger_repo: Annotated[SqlAlchemyLedgerRepository, Depends(get_ledger_repo)],
     provider: Annotated[MockPaymentProviderAdapter, Depends(get_mock_provider)],
     uow: Annotated[SqlAlchemyUnitOfWork, Depends(get_uow)],
     clock: Annotated[SystemClock, Depends(get_clock)],
+    review_repo: Annotated[SqlAlchemyTransactionReviewRepository, Depends(get_transaction_review_repo)],
 ) -> ExecuteRefundUseCase:
-    return ExecuteRefundUseCase(refund_repo, fund_disposition_repo, provider, uow, clock)
+    return ExecuteRefundUseCase(
+        refund_repo,
+        fund_disposition_repo,
+        ledger_repo,
+        provider,
+        uow,
+        clock,
+        review_repo=review_repo,
+    )

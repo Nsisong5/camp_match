@@ -41,7 +41,14 @@ from camp_match.modules.notification.application.use_cases.receive_event import 
     ReceiveEventUseCase,
 )
 from camp_match.modules.notification.domain.value_objects import NotificationType
-from camp_match.modules.payment.domain.events import PaymentOutcomeRecorded
+from camp_match.modules.payment.domain.events import (
+    PaymentAutoReleaseWarning,
+    PaymentDisputeRaised,
+    PaymentFundsRefunded,
+    PaymentFundsReleased,
+    PaymentOutcomeRecorded,
+    PaymentReleaseDue,
+)
 from camp_match.modules.trust_safety.application.ports.events import (
     SafetyUpdatePublished,
 )
@@ -169,6 +176,53 @@ def event_to_payload(event: Any) -> tuple[str, str, dict[str, Any]]:
                 else str(event.outcome)
             ),
         }
+    elif isinstance(event, PaymentReleaseDue):
+        event_type = "PaymentReleaseDue"
+        payload = {
+            "payment_id": str(event.payment_id),
+            "booking_id": str(event.booking_id),
+            "student_id": str(event.student_id),
+            "cycle": event.cycle,
+        }
+    elif isinstance(event, PaymentAutoReleaseWarning):
+        event_type = "PaymentAutoReleaseWarning"
+        payload = {
+            "payment_id": str(event.payment_id),
+            "booking_id": str(event.booking_id),
+            "student_id": str(event.student_id),
+            "cycle": event.cycle,
+            "warning_stage": (
+                event.warning_stage.value
+                if hasattr(event.warning_stage, "value")
+                else str(event.warning_stage)
+            ),
+        }
+    elif isinstance(event, PaymentDisputeRaised):
+        event_type = "PaymentDisputeRaised"
+        payload = {
+            "payment_id": str(event.payment_id),
+            "booking_id": str(event.booking_id),
+            "student_id": str(event.student_id),
+        }
+    elif isinstance(event, PaymentFundsReleased):
+        event_type = "PaymentFundsReleased"
+        payload = {
+            "payment_id": str(event.payment_id),
+            "booking_id": str(event.booking_id),
+            "student_id": str(event.student_id),
+            "origin": (
+                event.origin.value
+                if hasattr(event.origin, "value")
+                else str(event.origin)
+            ),
+        }
+    elif isinstance(event, PaymentFundsRefunded):
+        event_type = "PaymentFundsRefunded"
+        payload = {
+            "payment_id": str(event.payment_id),
+            "booking_id": str(event.booking_id),
+            "student_id": str(event.student_id),
+        }
     elif isinstance(event, VerificationDecisionRecorded):
         decision_str = str(event.decision).upper()
         mapping = {
@@ -241,6 +295,31 @@ def create_handler(
                 property_repo
             )
 
+            security_repo_mod = importlib.import_module(
+                "camp_match.modules.security.adapters.persistence.repository"
+            )
+            role_repo = security_repo_mod.SqlAlchemyRoleRepository(session)
+            identity_repo_mod = importlib.import_module(
+                "camp_match.modules.identity.adapters.persistence.repository"
+            )
+            identity_repo = identity_repo_mod.SqlAlchemyIdentityRepository(session)
+
+            from camp_match.modules.identity.application.use_cases.get_identity import (
+                GetIdentityByIdUseCase,
+            )
+            from camp_match.modules.security.application.use_cases.list_identities_holding_permission import (
+                ListIdentitiesHoldingPermissionUseCase,
+            )
+            from camp_match.modules.notification.adapters.security.staff_recipient_provider import (
+                SqlAlchemyStaffRecipientProvider,
+            )
+
+            list_identities_uc = ListIdentitiesHoldingPermissionUseCase(role_repo)
+            get_identity_uc = GetIdentityByIdUseCase(identity_repo)
+            staff_recipient_provider = SqlAlchemyStaffRecipientProvider(
+                list_identities_uc, get_identity_uc
+            )
+
             receive_uc = ReceiveEventUseCase(inbox_repo, uow, clock)
             inserted = await receive_uc.execute(
                 ReceiveEventRequest(
@@ -258,6 +337,7 @@ def create_handler(
                     backoff_base=settings.notification_inbox_backoff_base_seconds,
                     backoff_cap=settings.notification_inbox_backoff_cap_seconds,
                     debug_fail=debug_fail,
+                    staff_recipient_provider=staff_recipient_provider,
                 )
                 await process_uc.execute(
                     ProcessInboxEventRequest(event_id=event_id)

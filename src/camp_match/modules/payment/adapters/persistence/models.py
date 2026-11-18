@@ -9,6 +9,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
+    SmallInteger,
     String,
     UniqueConstraint,
     func,
@@ -186,11 +187,97 @@ class ReleaseDecisionModel(Base):
     origin: Mapped[str] = mapped_column(String, nullable=False)
     authorized_by: Mapped[UUID | None] = mapped_column(nullable=True)
     reason: Mapped[str] = mapped_column(String, nullable=False)
+    student_confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    warnings_sent_count: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
 
     __table_args__ = (
         CheckConstraint("decision IN ('RELEASE', 'REFUND')", name="check_release_decision_type"),
         CheckConstraint("origin IN ('AUTOMATIC', 'MANUAL')", name="check_release_decision_origin"),
         CheckConstraint("amount_kobo > 0", name="check_release_decision_amount_positive"),
+        CheckConstraint("decision <> 'RELEASE' OR student_confirmed_at IS NOT NULL", name="ck_release_requires_student_confirmation"),
+        CheckConstraint("NOT (decision = 'RELEASE' AND origin = 'AUTOMATIC') OR warnings_sent_count >= 3", name="ck_auto_release_requires_three_warnings"),
+    )
+
+
+class ReleaseScheduleModel(Base):
+    __tablename__ = "release_schedules"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    fund_disposition_id: Mapped[UUID] = mapped_column(ForeignKey("fund_dispositions.id"), nullable=False, unique=True, index=True)
+    payment_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    booking_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    student_confirmed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    cycle: Mapped[int] = mapped_column(SmallInteger, nullable=False, server_default=text("1"))
+    window_starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+
+    __table_args__ = (
+        CheckConstraint("cycle >= 1", name="check_release_schedule_cycle_positive"),
+    )
+
+
+class ReleaseWarningModel(Base):
+    __tablename__ = "release_warnings"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    release_schedule_id: Mapped[UUID] = mapped_column(ForeignKey("release_schedules.id"), nullable=False, index=True)
+    cycle: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    warning_number: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    due_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    superseded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("release_schedule_id", "cycle", "warning_number", name="uq_release_warning_schedule_cycle_number"),
+        CheckConstraint("cycle >= 1", name="check_release_warning_cycle_positive"),
+        CheckConstraint("warning_number >= 1", name="check_release_warning_number_positive"),
+        Index("ix_release_warnings_due_unsent", "due_at", postgresql_where=text("sent_at IS NULL AND superseded_at IS NULL")),
+    )
+
+
+class TransactionReviewModel(Base):
+    __tablename__ = "transaction_reviews"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True)
+    payment_id: Mapped[UUID] = mapped_column(ForeignKey("payments.id"), nullable=False, unique=True, index=True)
+    fund_disposition_id: Mapped[UUID] = mapped_column(ForeignKey("fund_dispositions.id"), nullable=False, unique=True, index=True)
+    payment_attempt_id: Mapped[UUID] = mapped_column(ForeignKey("payment_attempts.id"), nullable=False, index=True)
+    booking_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    student_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    provider_id: Mapped[UUID | None] = mapped_column(nullable=True)
+    property_id: Mapped[UUID | None] = mapped_column(nullable=True)
+    amount_kobo: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    currency: Mapped[str] = mapped_column(String, nullable=False)
+    provider_name: Mapped[str] = mapped_column(String, nullable=False)
+    provider_reference: Mapped[str] = mapped_column(String, nullable=False)
+    paid_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    booking_status: Mapped[str] = mapped_column(String, nullable=False)
+    handover_offered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    handover_accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    student_confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    release_cycle: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
+    release_window_starts_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    warnings_required: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
+    warnings_sent: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
+    last_warning_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    open_dispute_id: Mapped[UUID | None] = mapped_column(nullable=True)
+    dispute_count: Mapped[int] = mapped_column(SmallInteger, nullable=False, server_default=text("0"))
+    released_kobo: Mapped[int] = mapped_column(BigInteger, nullable=False, server_default=text("0"))
+    refunded_kobo: Mapped[int] = mapped_column(BigInteger, nullable=False, server_default=text("0"))
+    stage: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    next_action: Mapped[str] = mapped_column(String, nullable=False)
+    next_action_since: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
+    version: Mapped[int] = mapped_column(BigInteger, nullable=False, server_default=text("1"))
+
+    __table_args__ = (
+        CheckConstraint("amount_kobo > 0", name="check_transaction_review_amount_positive"),
+        CheckConstraint("released_kobo >= 0 AND refunded_kobo >= 0", name="check_transaction_review_ops_positive"),
+        CheckConstraint("released_kobo + refunded_kobo <= amount_kobo", name="check_transaction_review_sum_lte_amount"),
+        Index("ix_transaction_reviews_next_action", "next_action", postgresql_where=text("next_action <> 'NONE'")),
     )
 
 

@@ -21,6 +21,12 @@ from camp_match.modules.platform_runtime.adapters.jobs.payment_auto_release impo
 from camp_match.modules.platform_runtime.adapters.jobs.payment_recovery import (
     build_payment_recovery_job,
 )
+from camp_match.modules.platform_runtime.adapters.jobs.payment_release_warnings import (
+    build_payment_release_warnings_job,
+)
+from camp_match.modules.platform_runtime.adapters.jobs.payment_review_reconcile import (
+    build_payment_review_reconcile_job,
+)
 from camp_match.modules.platform_runtime.adapters.jobs.platform_outbox_relay import (
     build_platform_outbox_relay_job,
 )
@@ -72,6 +78,14 @@ def get_job_registry(settings: Any) -> dict[str, tuple[int, Callable[..., Any]]]
         "payment_auto_release": (
             settings.platform_job_payment_auto_release_interval_seconds,
             build_payment_auto_release_job,
+        ),
+        "payment_release_warnings": (
+            getattr(settings, "platform_job_payment_release_warnings_interval_seconds", 300),
+            build_payment_release_warnings_job,
+        ),
+        "payment_review_reconcile": (
+            getattr(settings, "platform_job_payment_review_reconcile_interval_seconds", 86400),
+            build_payment_review_reconcile_job,
         ),
         "retention_sweep": (
             getattr(settings, "platform_job_retention_sweep_interval_seconds", 86400),
