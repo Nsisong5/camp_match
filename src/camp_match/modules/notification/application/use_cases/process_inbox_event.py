@@ -140,8 +140,6 @@ class ProcessInboxEventUseCase:
                 return ProcessOutcome.PROCESSED
 
         except Exception as proc_err:
-            import traceback
-            traceback.print_exc()
             if isinstance(proc_err, RuntimeError) and str(proc_err) == "Debug forced processing failure":
                 # Fall through to failure handling
                 pass
