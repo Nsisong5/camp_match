@@ -149,17 +149,18 @@ def create_app() -> FastAPI:
     app.include_router(safety_review_router)
 
     settings = get_settings()
-    if settings.app_env in ("local", "test"):
+    if settings.app_env in ("local", "test") and settings.payment_provider == "mock":
         from camp_match.modules.payment.adapters.provider.mock.mock_control_router import (
             router as payment_mock_router,
         )
+        app.include_router(payment_mock_router)
+    if settings.app_env in ("local", "test"):
         from camp_match.modules.identity.adapters.email.dev_mailbox_router import (
             router as dev_mailbox_router,
         )
         from camp_match.modules.identity.adapters.google.mock_minter_router import (
             router as mock_google_router,
         )
-        app.include_router(payment_mock_router)
         app.include_router(dev_mailbox_router)
         app.include_router(mock_google_router)
 

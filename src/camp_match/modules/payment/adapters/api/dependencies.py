@@ -105,10 +105,24 @@ def get_ledger_repo(session: Annotated[AsyncSession, Depends(get_db_session)]) -
     return SqlAlchemyLedgerRepository(session)
 
 
+from camp_match.modules.payment.adapters.provider.mock.mock_provider_adapter import (
+    MockPaymentProviderAdapter,
+)
+from camp_match.modules.payment.adapters.provider.paystack.adapter import (
+    PaystackPaymentProviderAdapter,
+)
+from camp_match.modules.payment.adapters.provider.paystack.client import PaystackClient
+from camp_match.modules.payment.adapters.provider.paystack.webhook import PaystackWebhookHandler
+
+# ...
+
 _mock_provider = MockPaymentProviderAdapter()
 
-
-def get_mock_provider() -> MockPaymentProviderAdapter:
+def get_payment_provider(settings: Annotated[Settings, Depends(get_settings)]) -> Any:
+    if settings.payment_provider == "paystack":
+        client = PaystackClient(settings)
+        webhook_handler = PaystackWebhookHandler(settings)
+        return PaystackPaymentProviderAdapter(client, webhook_handler)
     return _mock_provider
 
 
@@ -290,7 +304,7 @@ def get_list_payment_tasks_use_case(
 def get_initiate_payment_use_case(
     attempt_repo: Annotated[SqlAlchemyPaymentAttemptRepository, Depends(get_payment_attempt_repo)],
     booking_provider: Annotated[InProcessBookingProvider, Depends(get_booking_provider)],
-    provider: Annotated[MockPaymentProviderAdapter, Depends(get_mock_provider)],
+    provider: Annotated[Any, Depends(get_payment_provider)],
     uow: Annotated[SqlAlchemyUnitOfWork, Depends(get_uow)],
     clock: Annotated[SystemClock, Depends(get_clock)],
 ) -> InitiatePaymentUseCase:
@@ -302,7 +316,7 @@ def get_verify_payment_attempt_use_case(
     payment_repo: Annotated[SqlAlchemyPaymentRepository, Depends(get_payment_repo)],
     fund_disposition_repo: Annotated[SqlAlchemyFundDispositionRepository, Depends(get_fund_disposition_repo)],
     ledger_repo: Annotated[SqlAlchemyLedgerRepository, Depends(get_ledger_repo)],
-    provider: Annotated[MockPaymentProviderAdapter, Depends(get_mock_provider)],
+    provider: Annotated[Any, Depends(get_payment_provider)],
     booking_confirmation_port: Annotated[Any, Depends(get_booking_confirmation_port)],
     booking_provider: Annotated[InProcessBookingProvider, Depends(get_booking_provider)],
     uow: Annotated[SqlAlchemyUnitOfWork, Depends(get_uow)],
@@ -326,7 +340,7 @@ def get_verify_payment_attempt_use_case(
 def get_process_webhook_use_case(
     webhook_repo: Annotated[SqlAlchemyWebhookEventRepository, Depends(get_webhook_event_repo)],
     attempt_repo: Annotated[SqlAlchemyPaymentAttemptRepository, Depends(get_payment_attempt_repo)],
-    provider: Annotated[MockPaymentProviderAdapter, Depends(get_mock_provider)],
+    provider: Annotated[Any, Depends(get_payment_provider)],
     verify_uc: Annotated[VerifyPaymentAttemptUseCase, Depends(get_verify_payment_attempt_use_case)],
     booking_provider: Annotated[InProcessBookingProvider, Depends(get_booking_provider)],
     uow: Annotated[SqlAlchemyUnitOfWork, Depends(get_uow)],
@@ -341,7 +355,7 @@ def get_execute_release_use_case(
     release_repo: Annotated[SqlAlchemyReleaseOperationRepository, Depends(get_release_operation_repo)],
     fund_disposition_repo: Annotated[SqlAlchemyFundDispositionRepository, Depends(get_fund_disposition_repo)],
     ledger_repo: Annotated[SqlAlchemyLedgerRepository, Depends(get_ledger_repo)],
-    provider: Annotated[MockPaymentProviderAdapter, Depends(get_mock_provider)],
+    provider: Annotated[Any, Depends(get_payment_provider)],
     uow: Annotated[SqlAlchemyUnitOfWork, Depends(get_uow)],
     clock: Annotated[SystemClock, Depends(get_clock)],
     release_decision_repo: Annotated[SqlAlchemyReleaseDecisionRepository, Depends(get_release_decision_repo)],
@@ -363,7 +377,7 @@ def get_execute_refund_use_case(
     refund_repo: Annotated[SqlAlchemyRefundOperationRepository, Depends(get_refund_operation_repo)],
     fund_disposition_repo: Annotated[SqlAlchemyFundDispositionRepository, Depends(get_fund_disposition_repo)],
     ledger_repo: Annotated[SqlAlchemyLedgerRepository, Depends(get_ledger_repo)],
-    provider: Annotated[MockPaymentProviderAdapter, Depends(get_mock_provider)],
+    provider: Annotated[Any, Depends(get_payment_provider)],
     uow: Annotated[SqlAlchemyUnitOfWork, Depends(get_uow)],
     clock: Annotated[SystemClock, Depends(get_clock)],
     review_repo: Annotated[SqlAlchemyTransactionReviewRepository, Depends(get_transaction_review_repo)],

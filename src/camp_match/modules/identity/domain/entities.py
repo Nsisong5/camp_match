@@ -25,12 +25,16 @@ class UserAccount:
     """Represents a user's security identity and account lifecycle."""
 
     id: IdentityId
-    email: EmailAddress
+    _email: EmailAddress
     password_hash: str | None
     status: AccountStatus
     created_at: datetime
     email_verified_at: datetime | None = None
     email_verification_source: EmailVerificationSource | None = None
+
+    @property
+    def email(self) -> EmailAddress:
+        return self._email
 
     def __post_init__(self) -> None:
         has_at = self.email_verified_at is not None
@@ -51,7 +55,7 @@ class UserAccount:
         """Constructs a pre-verified account in the ACTIVE state (backward compatible)."""
         return cls(
             id=id,
-            email=email,
+            _email=email,
             password_hash=password_hash,
             status=AccountStatus.ACTIVE,
             created_at=created_at,
@@ -70,7 +74,7 @@ class UserAccount:
         """Constructs an unverified account with a password."""
         return cls(
             id=id,
-            email=email,
+            _email=email,
             password_hash=password_hash,
             status=AccountStatus.ACTIVE,
             created_at=created_at,
@@ -90,7 +94,7 @@ class UserAccount:
         """Constructs a pre-verified account with a password (e.g. legacy)."""
         return cls(
             id=id,
-            email=email,
+            _email=email,
             password_hash=password_hash,
             status=AccountStatus.ACTIVE,
             created_at=created_at,
@@ -108,7 +112,7 @@ class UserAccount:
         """Constructs a verified Google-authenticated account without a password."""
         return cls(
             id=id,
-            email=email,
+            _email=email,
             password_hash=None,
             status=AccountStatus.ACTIVE,
             created_at=created_at,

@@ -86,7 +86,7 @@ class SqlAlchemyIdentityRepository:
         )
         return UserAccount(
             id=EntityId(model.id),
-            email=EmailAddress(model.email),
+            _email=EmailAddress(model.email),
             password_hash=model.password_hash,
             status=AccountStatus[model.status],
             created_at=model.created_at,

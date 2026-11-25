@@ -57,6 +57,8 @@ class ReleaseOperation:
     status: OperationStatus
     decision_id: EntityId
     provider_operation_reference: str | None = None
+    provider_operation_id: str | None = None
+    provider_fee_kobo: int | None = None
     requested_at: datetime = field(default_factory=datetime.now)
     confirmed_at: datetime | None = None
     failure_reason: str | None = None
@@ -74,6 +76,9 @@ class RefundOperation:
     status: OperationStatus
     decision_id: EntityId
     provider_operation_reference: str | None = None
+    provider_operation_id: str | None = None
+    provider_fee_kobo: int | None = None
+    provider_status_detail: str | None = None
     requested_at: datetime = field(default_factory=datetime.now)
     confirmed_at: datetime | None = None
     failure_reason: str | None = None

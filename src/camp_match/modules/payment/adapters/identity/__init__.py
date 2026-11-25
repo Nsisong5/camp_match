@@ -1,0 +1,1 @@
+"""Payment identity adapter package."""

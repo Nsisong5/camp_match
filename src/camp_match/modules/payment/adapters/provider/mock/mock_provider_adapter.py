@@ -27,6 +27,10 @@ class MockPaymentProviderAdapter:
             supports_webhooks=True,
             supports_refunds=True,
             supports_payouts=True,
+            supports_bank_directory=True,
+            supports_payout_recipients=True,
+            supports_refund_recovery=True,
+            supports_balance=True,
         )
         self._scenarios: dict[str, str] = {}
         self._transactions: dict[str, VerifiedProviderTransaction] = {}

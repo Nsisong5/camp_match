@@ -379,6 +379,25 @@ source_modules = [
 ]
 forbidden_modules = ["camp_match.modules.saved_listings"]
 
+[[tool.importlinter.contracts]]
+name = "Payment Domain and Application must not import httpx or paystack adapter"
+type = "forbidden"
+source_modules = [
+    "camp_match.modules.payment.domain",
+    "camp_match.modules.payment.application"
+]
+forbidden_modules = [
+    "httpx",
+    "camp_match.modules.payment.adapters.provider.paystack"
+]
+
+[[tool.importlinter.contracts]]
+name = "Only Paystack adapter may import httpx"
+type = "forbidden"
+source_modules = ["camp_match"]
+excluded_modules = ["camp_match.modules.payment.adapters.provider.paystack"]
+forbidden_modules = ["httpx"]
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"

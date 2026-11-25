@@ -1,0 +1,1 @@
+"""Payment housing adapter package."""

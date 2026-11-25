@@ -273,6 +273,8 @@ class SqlAlchemyReleaseOperationRepository:
             status=op.status.value,
             decision_id=op.decision_id.value,
             provider_operation_reference=op.provider_operation_reference,
+            provider_operation_id=op.provider_operation_id,
+            provider_fee_kobo=op.provider_fee_kobo,
             requested_at=op.requested_at,
             confirmed_at=op.confirmed_at,
             failure_reason=op.failure_reason,
@@ -292,12 +294,18 @@ class SqlAlchemyReleaseOperationRepository:
         op_id: EntityId,
         status: OperationStatus,
         provider_operation_reference: str | None = None,
+        provider_operation_id: str | None = None,
+        provider_fee_kobo: int | None = None,
         confirmed_at: datetime | None = None,
         failure_reason: str | None = None,
     ) -> bool:
         values: dict[str, Any] = {"status": status.value}
         if provider_operation_reference is not None:
             values["provider_operation_reference"] = provider_operation_reference
+        if provider_operation_id is not None:
+            values["provider_operation_id"] = provider_operation_id
+        if provider_fee_kobo is not None:
+            values["provider_fee_kobo"] = provider_fee_kobo
         if confirmed_at is not None:
             values["confirmed_at"] = confirmed_at
         if failure_reason is not None:
@@ -319,6 +327,8 @@ class SqlAlchemyReleaseOperationRepository:
             status=OperationStatus(model.status),
             decision_id=EntityId(model.decision_id),
             provider_operation_reference=model.provider_operation_reference,
+            provider_operation_id=model.provider_operation_id,
+            provider_fee_kobo=model.provider_fee_kobo,
             requested_at=model.requested_at,
             confirmed_at=model.confirmed_at,
             failure_reason=model.failure_reason,
@@ -850,3 +860,54 @@ class SqlAlchemyTransactionReviewRepository:
         stmt = stmt.limit(limit)
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
+
+from camp_match.modules.payment.adapters.persistence.payout_accounts import PayoutAccountModel
+from camp_match.modules.payment.domain.payout_accounts import PayoutAccount, PayoutAccountStatus
+
+class SqlAlchemyPayoutAccountRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def add(self, account: PayoutAccount) -> PayoutAccount:
+        model = PayoutAccountModel(
+            id=account.id.value,
+            scout_id=account.scout_id.value,
+            bank_code=account.bank_code,
+            last_four=account.last_four,
+            status=account.status.value,
+            created_at=account.created_at,
+        )
+        self._session.add(model)
+        await self._session.flush()
+        return account
+
+    async def get_active_by_scout_id(self, scout_id: EntityId) -> PayoutAccount | None:
+        stmt = select(PayoutAccountModel).where(
+            PayoutAccountModel.scout_id == scout_id.value,
+            PayoutAccountModel.status == PayoutAccountStatus.ACTIVE.value
+        )
+        result = await self._session.execute(stmt)
+        model = result.scalar_one_or_none()
+        return self._to_domain(model) if model else None
+
+    async def replace_account(self, old_id: EntityId, new_account: PayoutAccount) -> None:
+        stmt = update(PayoutAccountModel).where(
+            PayoutAccountModel.id == old_id.value
+        ).values(
+            status=PayoutAccountStatus.REPLACED.value,
+            replaced_at=datetime.now()
+        )
+        await self._session.execute(stmt)
+        await self.add(new_account)
+
+    def _to_domain(self, model: PayoutAccountModel) -> PayoutAccount:
+        return PayoutAccount(
+            id=EntityId(model.id),
+            scout_id=EntityId(model.scout_id),
+            bank_code=model.bank_code,
+            last_four=model.last_four,
+            status=PayoutAccountStatus(model.status),
+            created_at=model.created_at,
+            replaced_at=model.replaced_at,
+            release_hold_until=model.release_hold_until,
+        )

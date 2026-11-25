@@ -34,6 +34,63 @@ class Settings(BaseSettings):
     payment_verification_staleness_minutes: int = 15
     saved_listings_max_per_user: int = Field(default=200, ge=1)
 
+    # Payment Provider Settings (C13)
+    payment_provider: Literal["mock", "paystack"] = "mock"
+    paystack_secret_key: SecretStr | None = None
+    paystack_base_url: str = "https://api.paystack.co"
+    paystack_callback_url: str | None = None
+    paystack_connect_timeout_seconds: float = 5.0
+    paystack_read_timeout_seconds: float = 15.0
+    payout_account_change_cooloff_hours: int = 24
+    bank_resolve_max_per_hour: int = 10
+    bank_directory_cache_ttl_seconds: int = 86400
+    payment_operation_stale_hours: int = 24
+    payment_operation_lookup_grace_minutes: int = 10
+    payout_account_prompt_interval_hours: int = 24
+    platform_job_payment_payout_account_prompts_interval_seconds: int = 3600
+
+    @model_validator(mode="after")
+    def validate_payment_provider_settings(self) -> Settings:
+        if self.payment_provider == "paystack":
+            if not self.paystack_secret_key or not self.paystack_secret_key.get_secret_value():
+                raise ValueError("paystack_secret_key is required when payment_provider is paystack")
+            key_val = self.paystack_secret_key.get_secret_value()
+            if not (key_val.startswith("sk_test_") or key_val.startswith("sk_live_")):
+                raise ValueError("paystack_secret_key must start with sk_test_ or sk_live_")
+            if not self.paystack_callback_url:
+                raise ValueError("paystack_callback_url is required when payment_provider is paystack")
+            if not self.paystack_base_url.startswith("https://"):
+                raise ValueError("paystack_base_url must start with https://")
+            if self.app_env not in ("local", "test"):
+                if not self.paystack_callback_url.startswith("https://"):
+                    raise ValueError("paystack_callback_url must start with https:// outside local/test")
+                if "api.paystack.co" not in self.paystack_base_url:
+                    raise ValueError("paystack_base_url must be api.paystack.co outside local/test")
+
+            if key_val.startswith("sk_live_") and self.app_env != "production":
+                raise ValueError("Live Paystack key (sk_live_) cannot be used outside production")
+            if key_val.startswith("sk_test_") and self.app_env == "production":
+                import structlog
+                structlog.get_logger(__name__).warning("paystack_test_key_in_production", message="Test Paystack key (sk_test_) used in production; this deployment cannot take real money.")
+
+        if self.paystack_connect_timeout_seconds <= 0:
+            raise ValueError("paystack_connect_timeout_seconds must be positive")
+        if self.paystack_read_timeout_seconds <= 0:
+            raise ValueError("paystack_read_timeout_seconds must be positive")
+        if self.payout_account_change_cooloff_hours < 0:
+            raise ValueError("payout_account_change_cooloff_hours must be non-negative")
+        if self.bank_resolve_max_per_hour < 1:
+            raise ValueError("bank_resolve_max_per_hour must be at least 1")
+        if self.bank_directory_cache_ttl_seconds < 60:
+            raise ValueError("bank_directory_cache_ttl_seconds must be at least 60")
+        if self.payment_operation_stale_hours < 1:
+            raise ValueError("payment_operation_stale_hours must be at least 1")
+        if self.payment_operation_lookup_grace_minutes < 1:
+            raise ValueError("payment_operation_lookup_grace_minutes must be at least 1")
+        if self.payout_account_prompt_interval_hours < 1:
+            raise ValueError("payout_account_prompt_interval_hours must be at least 1")
+        return self
+
     @model_validator(mode="after")
     def validate_payment_warning_offsets(self) -> Settings:
         try:

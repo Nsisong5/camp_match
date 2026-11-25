@@ -146,12 +146,40 @@ class ReleaseOperationRepository(Protocol):
     async def get_by_id(self, op_id: EntityId) -> ReleaseOperation | None:
         ...
 
+    async def get_by_decision_id(self, decision_id: EntityId) -> ReleaseOperation | None:
+        ...
+
+    async def update_status(
+        self,
+        op_id: EntityId,
+        status: OperationStatus,
+        provider_operation_reference: str | None = None,
+        provider_operation_id: str | None = None,
+        provider_fee_kobo: int | None = None,
+        confirmed_at: datetime | None = None,
+        failure_reason: str | None = None,
+    ) -> bool:
+        ...
+
 
 class RefundOperationRepository(Protocol):
     async def add(self, op: RefundOperation) -> RefundOperation:
         ...
 
     async def get_by_id(self, op_id: EntityId) -> RefundOperation | None:
+        ...
+
+    async def update_status(
+        self,
+        op_id: EntityId,
+        status: OperationStatus,
+        provider_operation_reference: str | None = None,
+        provider_operation_id: str | None = None,
+        provider_fee_kobo: int | None = None,
+        provider_status_detail: str | None = None,
+        confirmed_at: datetime | None = None,
+        failure_reason: str | None = None,
+    ) -> bool:
         ...
 
 
